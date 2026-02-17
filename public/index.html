@@ -280,6 +280,104 @@ select option{background:#161625;}
 .seen-pill{padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;background:var(--s2);border:1px solid var(--border);color:var(--muted);}
 .seen-pill.done{background:rgba(0,229,176,.1);border-color:rgba(0,229,176,.25);color:var(--accent);}
 .voter-who{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:8px;}
+
+/* ── CHAT WIDGET ── */
+#chatWidget{
+  position:fixed;bottom:80px;right:16px;z-index:100;
+  width:300px;max-width:calc(100vw - 32px);
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:18px;overflow:hidden;
+  box-shadow:0 8px 32px rgba(0,0,0,.4);
+  display:none;flex-direction:column;
+  max-height:420px;
+}
+#chatWidget.open{display:flex;}
+#chatHeader{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 14px;background:var(--s2);border-bottom:1px solid var(--border);
+  cursor:pointer;
+}
+#chatTitle{font-size:13px;font-weight:700;letter-spacing:.5px;}
+#chatBadge{
+  background:var(--danger);color:#fff;font-size:10px;font-weight:700;
+  border-radius:20px;padding:1px 7px;display:none;
+}
+#chatMessages{
+  flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;
+  min-height:200px;
+}
+.chat-msg{max-width:85%;}
+.chat-msg.me{align-self:flex-end;}
+.chat-msg.other{align-self:flex-start;}
+.chat-bubble{
+  padding:8px 12px;border-radius:14px;font-size:13px;line-height:1.5;
+  word-break:break-word;
+}
+.chat-msg.me .chat-bubble{background:var(--accent);color:#080810;border-radius:14px 14px 4px 14px;}
+.chat-msg.other .chat-bubble{background:var(--s3);color:var(--text);border-radius:14px 14px 14px 4px;}
+.chat-from{font-size:10px;color:var(--muted);margin-bottom:3px;font-weight:600;}
+.chat-time{font-size:10px;color:var(--muted);margin-top:2px;text-align:right;}
+#chatInputRow{
+  display:flex;gap:8px;padding:10px 12px;
+  border-top:1px solid var(--border);background:var(--s2);
+}
+#chatInput{
+  flex:1;background:var(--s3);border:1px solid var(--border);
+  border-radius:10px;padding:8px 12px;color:var(--text);
+  font-family:'DM Sans',sans-serif;font-size:13px;outline:none;
+}
+#chatInput:focus{border-color:var(--accent);}
+#chatSendBtn{
+  background:var(--accent);color:#080810;border:none;
+  border-radius:10px;padding:8px 14px;font-weight:700;cursor:pointer;font-size:13px;
+}
+
+/* ── VOICE WIDGET ── */
+#voiceWidget{
+  position:fixed;bottom:16px;right:16px;z-index:100;
+  display:none;flex-direction:column;align-items:flex-end;gap:8px;
+}
+#voiceWidget.show{display:flex;}
+#pttBtn{
+  width:60px;height:60px;border-radius:50%;border:none;cursor:pointer;
+  background:var(--s2);border:2px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:26px;transition:all .15s;box-shadow:0 4px 16px rgba(0,0,0,.3);
+  user-select:none;-webkit-user-select:none;
+}
+#pttBtn.talking{
+  background:var(--danger);border-color:var(--danger);
+  box-shadow:0 0 0 8px rgba(255,59,87,.2),0 4px 16px rgba(0,0,0,.3);
+  transform:scale(1.08);
+}
+#speakingList{
+  display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-end;max-width:220px;
+}
+.speaking-pill{
+  background:rgba(255,59,87,.15);border:1px solid rgba(255,59,87,.35);
+  color:var(--danger);font-size:11px;font-weight:600;
+  border-radius:20px;padding:3px 10px;
+  animation:pulse 1s infinite;
+}
+
+/* ── FAB BUTTONS ── */
+#fabChat{
+  position:fixed;bottom:88px;left:16px;z-index:100;
+  width:48px;height:48px;border-radius:50%;border:none;
+  background:var(--s2);border:1px solid var(--border);
+  color:var(--text);font-size:22px;cursor:pointer;
+  box-shadow:0 4px 16px rgba(0,0,0,.3);display:none;
+  align-items:center;justify-content:center;
+}
+#fabChat.show{display:flex;}
+#fabChat .unread{
+  position:absolute;top:2px;right:2px;
+  background:var(--danger);color:#fff;
+  font-size:9px;font-weight:700;border-radius:50%;
+  width:16px;height:16px;display:none;
+  align-items:center;justify-content:center;
+}
+#fabChat .unread.show{display:flex;}
 </style>
 </head>
 <body>
@@ -544,6 +642,15 @@ select option{background:#161625;}
 </div>
 </div>
 
+<!-- ══ CHAT WIDGET ══ -->
+<button id="fabChat" onclick="toggleChat()">💬<div class="unread" id="chatUnread">0</div></button>
+<div id="chatWidget">
+  <div id="chatHeader" onclick="toggleChat()"><span id="chatTitle">💬 Chat Room</span><span id="chatBadge"></span></div>
+  <div id="chatMessages"></div>
+  <div id="chatInputRow"><input type="text" id="chatInput" placeholder="Ketik pesan..." maxlength="200" autocomplete="off" autocorrect="off"><button id="chatSendBtn" onclick="sendChat()">➤</button></div>
+</div>
+<!-- ══ VOICE WIDGET ══ -->
+<div id="voiceWidget"><div id="speakingList"></div><button id="pttBtn" title="Tahan untuk bicara">🎙️</button></div>
 <script>
 // ══════════════════════════════════════════════
 // WORD DATA
@@ -1195,6 +1302,280 @@ async function applyState(st) {
       break;
   }
 }
+
+// ══════════════════════════════════════════════
+// ENTER KEY
+// ══════════════════════════════════════════════
+document.getElementById('myName').addEventListener('keydown', e => {
+  if(e.key==='Enter') createRoom();
+});
+
+// ══════════════════════════════════════════════
+// CHAT
+// ══════════════════════════════════════════════
+let chatOpen = false;
+let unreadCount = 0;
+
+function showWidgets() {
+  document.getElementById('fabChat').classList.add('show');
+  document.getElementById('voiceWidget').classList.add('show');
+}
+function hideWidgets() {
+  document.getElementById('fabChat').classList.remove('show');
+  document.getElementById('chatWidget').classList.remove('open');
+  document.getElementById('voiceWidget').classList.remove('show');
+  chatOpen = false;
+}
+
+function toggleChat() {
+  chatOpen = !chatOpen;
+  document.getElementById('chatWidget').classList.toggle('open', chatOpen);
+  if (chatOpen) {
+    unreadCount = 0;
+    const u = document.getElementById('chatUnread');
+    u.textContent = '0'; u.classList.remove('show');
+    setTimeout(() => {
+      const el = document.getElementById('chatMessages');
+      el.scrollTop = el.scrollHeight;
+      document.getElementById('chatInput').focus();
+    }, 50);
+  }
+}
+
+function sendChat() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text || !ws || ws.readyState !== 1) return;
+  ws.send(JSON.stringify({ type: 'chat', text }));
+  input.value = '';
+  input.focus();
+}
+
+function appendChatMsg(msg) {
+  const el = document.getElementById('chatMessages');
+  const isMe = msg.from === myName;
+  const time = new Date(msg.time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  const div = document.createElement('div');
+  div.className = `chat-msg ${isMe ? 'me' : 'other'}`;
+  div.innerHTML = `
+    ${!isMe ? `<div class="chat-from">${msg.from}</div>` : ''}
+    <div class="chat-bubble">${escapeHtml(msg.text)}</div>
+    <div class="chat-time">${time}</div>
+  `;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+
+  if (!chatOpen && !isMe) {
+    unreadCount++;
+    const u = document.getElementById('chatUnread');
+    u.textContent = unreadCount > 9 ? '9+' : unreadCount;
+    u.classList.add('show');
+  }
+}
+
+function escapeHtml(t) {
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.getElementById('chatInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendChat();
+});
+
+// ══════════════════════════════════════════════
+// VOICE CHAT — WebRTC Push To Talk
+// ══════════════════════════════════════════════
+let localStream = null;
+let peerConnections = {}; // { playerName: RTCPeerConnection }
+let isTalking = false;
+
+const ICE_SERVERS = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+async function initVoice(players) {
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    // Mute by default (push to talk)
+    localStream.getAudioTracks().forEach(t => t.enabled = false);
+
+    // Setup peer connections dengan semua pemain lain
+    for (const p of players) {
+      if (p === myName) continue;
+      if (!peerConnections[p]) {
+        await createPeerConnection(p);
+      }
+    }
+  } catch(e) {
+    console.warn('Mic tidak bisa diakses:', e);
+  }
+}
+
+async function createPeerConnection(targetName) {
+  const pc = new RTCPeerConnection(ICE_SERVERS);
+  peerConnections[targetName] = pc;
+
+  // Tambahkan local stream
+  if (localStream) {
+    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+  }
+
+  // Terima audio dari peer
+  pc.ontrack = (e) => {
+    const audio = new Audio();
+    audio.srcObject = e.streams[0];
+    audio.autoplay = true;
+    document.body.appendChild(audio);
+  };
+
+  // ICE candidate
+  pc.onicecandidate = (e) => {
+    if (e.candidate && ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({ type: 'voice_ice', to: targetName, candidate: e.candidate }));
+    }
+  };
+
+  // Buat offer
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  if (ws && ws.readyState === 1) {
+    ws.send(JSON.stringify({ type: 'voice_offer', to: targetName, sdp: offer }));
+  }
+
+  return pc;
+}
+
+async function handleVoiceSignal(data) {
+  const from = data.from;
+  if (!from || from === myName) return;
+
+  if (data.type === 'voice_offer') {
+    let pc = peerConnections[from];
+    if (!pc) {
+      pc = new RTCPeerConnection(ICE_SERVERS);
+      peerConnections[from] = pc;
+      if (localStream) localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+      pc.ontrack = (e) => {
+        const audio = new Audio();
+        audio.srcObject = e.streams[0];
+        audio.autoplay = true;
+        document.body.appendChild(audio);
+      };
+      pc.onicecandidate = (e) => {
+        if (e.candidate && ws && ws.readyState === 1) {
+          ws.send(JSON.stringify({ type: 'voice_ice', to: from, candidate: e.candidate }));
+        }
+      };
+    }
+    await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({ type: 'voice_answer', to: from, sdp: answer }));
+    }
+  }
+
+  if (data.type === 'voice_answer') {
+    const pc = peerConnections[from];
+    if (pc) await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+  }
+
+  if (data.type === 'voice_ice') {
+    const pc = peerConnections[from];
+    if (pc && data.candidate) await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+  }
+}
+
+function updateSpeakingList(from, speaking) {
+  const el = document.getElementById('speakingList');
+  const id = `sp_${from.replace(/\s+/g,'_')}`;
+  if (speaking) {
+    if (!document.getElementById(id)) {
+      const pill = document.createElement('div');
+      pill.className = 'speaking-pill';
+      pill.id = id;
+      pill.textContent = `🔴 ${from}`;
+      el.appendChild(pill);
+    }
+  } else {
+    const pill = document.getElementById(id);
+    if (pill) pill.remove();
+  }
+}
+
+// Push To Talk — mouse & touch
+const pttBtn = document.getElementById('pttBtn');
+
+function startTalk() {
+  if (!localStream) return;
+  isTalking = true;
+  localStream.getAudioTracks().forEach(t => t.enabled = true);
+  pttBtn.classList.add('talking');
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'voice_speaking', speaking: true }));
+}
+function stopTalk() {
+  if (!localStream) return;
+  isTalking = false;
+  localStream.getAudioTracks().forEach(t => t.enabled = false);
+  pttBtn.classList.remove('talking');
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'voice_speaking', speaking: false }));
+}
+
+pttBtn.addEventListener('mousedown', startTalk);
+pttBtn.addEventListener('mouseup', stopTalk);
+pttBtn.addEventListener('mouseleave', stopTalk);
+pttBtn.addEventListener('touchstart', e => { e.preventDefault(); startTalk(); }, { passive: false });
+pttBtn.addEventListener('touchend', e => { e.preventDefault(); stopTalk(); }, { passive: false });
+
+// ══════════════════════════════════════════════
+// PATCH handleStateUpdate — tambahkan init voice
+// ══════════════════════════════════════════════
+const _origHandleStateUpdate = handleStateUpdate;
+handleStateUpdate = function(st) {
+  if (!st) return;
+  const stStr = JSON.stringify(st);
+  if (stStr === lastStateStr) return;
+  lastStateStr = stStr;
+
+  // Init voice saat masuk lobby
+  if (st.status === 'lobby' && st.players && st.players.includes(myName)) {
+    if (!localStream) initVoice(st.players);
+  }
+  applyState(st);
+};
+
+// ══════════════════════════════════════════════
+// PATCH WS onmessage — tangani chat & voice
+// ══════════════════════════════════════════════
+const _origConnectWS = connectWS;
+connectWS = function(code) {
+  if (ws) { try { ws.close(); } catch(e) {} }
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}`);
+  ws.onopen = () => {
+    wsReady = true;
+    ws.send(JSON.stringify({ type: 'subscribe', room: code, name: myName }));
+    showWidgets();
+  };
+  ws.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'state') {
+        handleStateUpdate(msg.data);
+      } else if (msg.type === 'deleted') {
+        stopPoll(); hideWidgets(); goTo('s-home');
+      } else if (msg.type === 'chat') {
+        appendChatMsg(msg.msg);
+      } else if (msg.type === 'chat_history') {
+        document.getElementById('chatMessages').innerHTML = '';
+        msg.messages.forEach(m => appendChatMsg(m));
+      } else if (['voice_offer','voice_answer','voice_ice'].includes(msg.type)) {
+        handleVoiceSignal(msg);
+      } else if (msg.type === 'voice_speaking') {
+        updateSpeakingList(msg.from, msg.speaking);
+      }
+    } catch(err) {}
+  };
+  ws.onclose = () => { wsReady = false; };
+  ws.onerror = () => { wsReady = false; };
+};
 
 // ══════════════════════════════════════════════
 // ENTER KEY
