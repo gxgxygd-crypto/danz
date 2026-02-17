@@ -304,7 +304,14 @@ select option{background:#161625;}
     </div>
     <div id="joinError" class="error-txt"></div>
   </div>
-  <div style="margin-top:28px;padding:16px;background:var(--s2);border-radius:14px;border:1px solid var(--border);">
+  <div style="margin-top:14px;padding:14px 16px;background:rgba(245,158,11,.07);border-radius:14px;border:1px solid rgba(245,158,11,.25);">
+    <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#f59e0b;font-weight:700;margin-bottom:6px;">💡 Mode Bermain</div>
+    <div style="font-size:12.5px;color:var(--text);line-height:1.75;">
+      <strong>1 perangkat:</strong> Buka beberapa tab browser, tiap pemain buka tab sendiri<br>
+      <strong>Banyak perangkat:</strong> Semua buka file HTML ini, pakai kode room yang sama
+    </div>
+  </div>
+  <div style="margin-top:14px;padding:16px;background:var(--s2);border-radius:14px;border:1px solid var(--border);">
     <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:10px;">Cara Bermain</div>
     <div style="font-size:13px;color:var(--text);line-height:1.8;">
       1. Satu orang <strong>Buat Room</strong>, bagikan kode ke teman<br>
@@ -569,24 +576,57 @@ let localTimerLeft = 0;
 let timerPaused = false;
 let currentScreen = 'home';
 
-const POLL_MS = 1500;
-const PREFIX = 'spy2_';
+const POLL_MS = 2000;
 
 // ══════════════════════════════════════════════
-// STORAGE HELPERS
+// SERVER HELPERS — fetch API + WebSocket
 // ══════════════════════════════════════════════
+// Deteksi URL server otomatis (same origin)
+const SERVER_URL = window.location.origin;
+let ws = null;
+let wsReady = false;
+
+function connectWS(code) {
+  if (ws) { try { ws.close(); } catch(e) {} }
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}`);
+  ws.onopen = () => {
+    wsReady = true;
+    ws.send(JSON.stringify({ type: 'subscribe', room: code }));
+  };
+  ws.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'state' && msg.data) {
+        handleStateUpdate(msg.data);
+      } else if (msg.type === 'deleted') {
+        stopPoll(); goTo('s-home');
+      }
+    } catch(err) {}
+  };
+  ws.onclose = () => { wsReady = false; };
+  ws.onerror = () => { wsReady = false; };
+}
+
 async function getState() {
   try {
-    const r = await window.storage.get(PREFIX + roomCode, true);
-    return r ? JSON.parse(r.value) : null;
+    const res = await fetch(`${SERVER_URL}/room/${roomCode}`);
+    if (!res.ok) return null;
+    return await res.json();
   } catch(e) { return null; }
 }
+
 async function setState(st) {
   try {
-    await window.storage.set(PREFIX + roomCode, JSON.stringify(st), true);
-    return true;
+    const res = await fetch(`${SERVER_URL}/room/${roomCode}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(st)
+    });
+    return res.ok;
   } catch(e) { return false; }
 }
+
 async function updateState(fn) {
   const st = await getState();
   if (!st) return null;
@@ -594,6 +634,15 @@ async function updateState(fn) {
   if (updated === false) return null;
   await setState(updated);
   return updated;
+}
+
+// Dipanggil saat WS push update masuk
+function handleStateUpdate(st) {
+  if (!st) return;
+  const stStr = JSON.stringify(st);
+  if (stStr === lastStateStr) return;
+  lastStateStr = stStr;
+  applyState(st);
 }
 function genCode() {
   const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -634,6 +683,7 @@ async function createRoom() {
     eliminatedPlayer: null,
     winner: null,
     spyGuessedWord: null,
+    _createdAt: Date.now(),
   };
   await setState(st);
   enterLobby(st);
@@ -668,7 +718,8 @@ function enterLobby(st) {
   document.getElementById('hostBtns').style.display = isHost ? 'flex' : 'none';
   document.getElementById('guestBtns').style.display = !isHost ? 'flex' : 'none';
   renderLobby(st);
-  startPoll();
+  connectWS(roomCode); // Connect WebSocket untuk real-time sync
+  startPoll();         // Polling sebagai fallback
 }
 
 function renderLobby(st) {
@@ -695,7 +746,11 @@ async function leaveRoom() {
   stopPoll();
   if (!isHost) {
     await updateState(s => { s.players = s.players.filter(p => p !== myName); return s; });
+  } else {
+    // Host keluar → hapus room dari server
+    try { await fetch(`${SERVER_URL}/room/${roomCode}`, { method: 'DELETE' }); } catch(e) {}
   }
+  if (ws) { try { ws.close(); } catch(e) {} ws = null; }
   myName=''; roomCode=''; isHost=false; myRole=null; myWord=null; hasSeen=false; hasVoted=false; selectedVote=null; lastStateStr='';
   goTo('s-home');
 }
@@ -1058,7 +1113,7 @@ async function playAgain() {
 }
 
 // ══════════════════════════════════════════════
-// POLLING — THE HEARTBEAT
+// POLLING — FALLBACK HEARTBEAT
 // ══════════════════════════════════════════════
 function startPoll() {
   stopPoll();
@@ -1070,15 +1125,17 @@ function stopPoll() { clearInterval(pollTimer); }
 async function poll() {
   const st = await getState();
   if (!st) { if(currentScreen!=='s-home') { stopPoll(); goTo('s-home'); } return; }
+  handleStateUpdate(st);
+}
+
+// applyState: inti logika render — dipanggil dari poll & WS push
+async function applyState(st) {
+  if (!st) { if(currentScreen!=='s-home') { stopPoll(); goTo('s-home'); } return; }
 
   // Check if kicked
   if (!st.players.includes(myName)) {
     stopPoll(); goTo('s-home'); return;
   }
-
-  const stStr = JSON.stringify(st);
-  if (stStr === lastStateStr) return;
-  lastStateStr = stStr;
 
   // HOST: auto-set timer when discuss starts
   if (isHost && st.status==='discuss' && !st.timerStart) {
@@ -1087,15 +1144,11 @@ async function poll() {
   }
   // HOST: auto-advance voter index when vote submitted
   if (isHost && st.status==='vote') {
-    // Check if current voter has voted but idx not advanced
     const cv = st.players[st.currentVoterIdx];
     if (cv && st.votes[cv] && st.currentVoterIdx < st.players.length) {
-      // Check if we need to advance
       const votedCount = Object.keys(st.votes).length;
       if (votedCount > st.currentVoterIdx) {
-        // Need to advance
         if (votedCount >= st.players.length) {
-          // All voted, process
           await updateState(s => { processVotes(s); return s; });
         } else {
           await updateState(s => { s.currentVoterIdx = votedCount; return s; });
@@ -1114,7 +1167,6 @@ async function poll() {
     case 'mycard':
       if (currentScreen !== 's-mycard') { goTo('s-mycard'); }
       setupMyCard(st);
-      // Auto-advance when all seen
       if (st.cardsSeen.length >= st.players.length && isHost) {
         await updateState(s => { s.status='discuss'; return s; });
       }
@@ -1124,7 +1176,6 @@ async function poll() {
         goTo('s-discuss');
         setupDiscuss(st);
       } else {
-        // Update timer
         if (st.timerStart) {
           const elapsed = Math.floor((Date.now()-st.timerStart)/1000);
           localTimerLeft = Math.max(0, st.settings.duration - elapsed);
