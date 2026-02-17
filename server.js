@@ -122,20 +122,3 @@ setInterval(() => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`🕵️  Who's The Spy server running on port ${PORT}`));
-  roomClients[roomCode].forEach((ws) => {
-    if (ws !== exclude && ws.readyState === 1) try { ws.send(msg); } catch(e) {}
-  });
-}
-
-setInterval(() => {
-  const now = Date.now();
-  Object.keys(rooms).forEach(code => {
-    const st = rooms[code];
-    if (st._createdAt && now - st._createdAt > 2 * 60 * 60 * 1000) {
-      delete rooms[code]; delete roomChats[code]; delete roomClients[code];
-    }
-  });
-}, 10 * 60 * 1000);
-
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`🕵️  Who's The Spy server running on port ${PORT}`));
