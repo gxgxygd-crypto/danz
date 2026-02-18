@@ -1,0 +1,1529 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+<title>🎮 GameHub</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Fredoka+One&family=Syne:wght@700;900&family=Nunito:wght@400;600;700;900&family=DM+Sans:wght@400;500;600;700&family=Noto+Sans:wght@400;600;700&display=swap" rel="stylesheet"/>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:#080810;color:#eeeef5;font-family:'DM Sans',sans-serif;overflow:hidden;}
+button{cursor:pointer;}
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px;}
+.mt12{margin-top:12px;}.mt16{margin-top:16px;}
+.gview{display:none;position:fixed;inset:0;z-index:10;overflow:hidden;}
+.gview.active{display:block;}
+
+/* ── HUB ── */
+#hub{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:28px 16px;overflow-y:auto;background:#080810;background-image:radial-gradient(ellipse 70% 50% at 50% -5%,rgba(109,40,217,.18) 0%,transparent 60%),radial-gradient(ellipse 40% 30% at 90% 110%,rgba(0,229,176,.08) 0%,transparent 50%);position:fixed;inset:0;z-index:5;transition:opacity .3s;}
+#hub.hidden{opacity:0;pointer-events:none;}
+.hub-logo{font-family:'Bebas Neue',cursive;font-size:clamp(52px,14vw,88px);letter-spacing:5px;line-height:1;background:linear-gradient(135deg,#fff 0%,#00e5b0 40%,#6d28d9 80%,#ff6b6b 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-align:center;}
+.hub-sub{text-align:center;font-size:12px;letter-spacing:3px;text-transform:uppercase;color:#62628a;margin-bottom:32px;}
+.hub-games{display:flex;flex-direction:column;gap:14px;width:100%;max-width:420px;}
+.hub-card{border:none;border-radius:18px;padding:0;text-align:left;overflow:hidden;transition:transform .18s;position:relative;}
+.hub-card:hover{transform:translateY(-3px);}
+.hub-inner{padding:20px 22px;display:flex;align-items:center;gap:16px;}
+.hub-icon{font-size:36px;flex-shrink:0;}
+.hub-title{font-family:'Bebas Neue',cursive;font-size:22px;letter-spacing:2px;color:#fff;}
+.hub-desc{font-size:12px;margin-top:3px;opacity:.75;font-family:'Nunito',sans-serif;}
+.hub-arr{margin-left:auto;font-size:20px;opacity:.6;}
+.hc-w{background:linear-gradient(135deg,#1a2a1a,#0f1f0f);border:1px solid rgba(74,156,89,.3);box-shadow:0 6px 24px rgba(74,156,89,.15);}
+.hc-w .hub-title{color:#4a9c59;}
+.hc-s{background:linear-gradient(135deg,#1a1a2a,#0f0f1f);border:1px solid rgba(78,205,196,.3);box-shadow:0 6px 24px rgba(78,205,196,.15);}
+.hc-s .hub-title{color:#4ECDC4;}
+.hc-p{background:linear-gradient(135deg,#1a0a1a,#0f050f);border:1px solid rgba(109,40,217,.3);box-shadow:0 6px 24px rgba(109,40,217,.15);}
+.hc-p .hub-title{color:#00e5b0;}
+#hback{position:fixed;top:14px;left:14px;z-index:999;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:8px 14px;color:#eeeef5;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;backdrop-filter:blur(8px);display:none;}
+#hback.vis{display:block;}
+
+/* ── WORDLE ── */
+#wv{background:#0f0f13;overflow-y:auto;font-family:'Noto Sans',sans-serif;}
+.ws{display:none;flex-direction:column;align-items:center;padding:20px 16px 60px;min-height:100%;gap:12px;}
+.ws.on{display:flex;}
+#wv{--fg:#f0eee8;--muted:#666;--tb:#1a1a22;--tbo:#2e2e3e;--ta:#777;--kb:#252532;--ka:#1a1a24;--cor:#4a9c59;--pre:#c8962a;--abs:#1c1c28;--brd:#2a2a3a;--acc:#7c5cbf;--card:#13131c;--r:10px;}
+.wb{border:none;border-radius:var(--r);padding:10px 18px;font-weight:700;font-size:13px;letter-spacing:1px;color:#fff;cursor:pointer;font-family:'Noto Sans',sans-serif;}
+.wb:hover{opacity:.82;}
+.wb-bk{background:#2a2a3a;}.wb-gr{background:linear-gradient(135deg,#4a9c59,#2d7a44);}.wb-go{background:linear-gradient(135deg,#c8962a,#9a6e10);}.wb-pu{background:linear-gradient(135deg,#7c5cbf,#5a3e9e);}
+.wb-fl{width:100%;padding:14px;font-size:15px;}.wb-sm{padding:8px 14px;font-size:12px;}
+.wi{background:var(--tb);color:var(--fg);border:1px solid var(--brd);border-radius:var(--r);padding:11px 14px;font-family:'Noto Sans',sans-serif;font-size:15px;width:100%;}
+.wi:focus{outline:none;border-color:var(--acc);}
+.wi-c{text-align:center;letter-spacing:6px;font-family:'Syne',sans-serif;font-size:20px;text-transform:uppercase;}
+.wcard{background:var(--card);border:1px solid var(--brd);border-radius:var(--r);padding:14px 16px;width:100%;}
+.wlbl{font-size:10px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;margin-bottom:6px;}
+.wlt{display:flex;gap:5px;background:var(--tb);border-radius:8px;padding:4px;border:1px solid var(--brd);}
+.wlb{border:none;border-radius:6px;padding:7px 14px;font-weight:700;font-size:12px;transition:all .2s;background:transparent;color:var(--muted);cursor:pointer;}
+.wlb.on{background:var(--acc);color:#fff;}
+.wgrid{display:flex;flex-direction:column;gap:4px;}
+.wgr{display:flex;gap:4px;}
+.wt{width:52px;height:52px;display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:900;border:2px solid var(--tbo);background:var(--tb);color:var(--fg);border-radius:5px;font-family:'Syne',sans-serif;transition:transform .1s;}
+.wt.fil{border-color:var(--ta);transform:scale(1.06);}
+.wt.cor{background:var(--cor);color:#fff;border-color:var(--cor);}
+.wt.pre{background:var(--pre);color:#fff;border-color:var(--pre);}
+.wt.abs{background:var(--abs);color:#fff;border-color:var(--abs);}
+.wkb{display:flex;flex-direction:column;gap:5px;align-items:center;}
+.wkr{display:flex;gap:4px;}
+.wk{height:46px;border:1px solid var(--brd);border-radius:6px;background:var(--kb);color:var(--fg);font-weight:700;font-size:13px;min-width:34px;padding:0 2px;cursor:pointer;transition:background .3s;}
+.wk.wd{min-width:54px;font-size:10px;}
+.wk.cor{background:var(--cor);color:#fff;border-color:var(--cor);}
+.wk.pre{background:var(--pre);color:#fff;border-color:var(--pre);}
+.wk.abs{background:var(--ka);color:#555;border-color:var(--ka);}
+.wsb{display:flex;flex-direction:column;gap:5px;}
+.wpr{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:7px;border:1px solid transparent;}
+.wpr.me{background:rgba(124,92,191,.15);border-color:rgba(124,92,191,.35);}
+.wpn{flex:1;font-size:13px;font-weight:700;}
+.wps{font-size:11px;color:var(--cor);letter-spacing:1px;}
+.wbn{border-radius:var(--r);padding:14px 16px;text-align:center;width:100%;}
+.wbn.win{background:rgba(74,156,89,.12);border:1px solid var(--cor);}
+.wbn.los{background:rgba(200,150,42,.1);border:1px solid var(--pre);}
+.wtit{font-size:54px;letter-spacing:8px;font-weight:900;line-height:1;background:linear-gradient(135deg,#c8962a 0%,#7c5cbf 50%,#4a9c59 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-align:center;font-family:'Syne',sans-serif;}
+.wmd{width:100%;border:none;border-radius:12px;padding:0;text-align:left;overflow:hidden;transition:transform .15s;cursor:pointer;}
+.wmd:hover{transform:translateY(-2px);}
+.wmd-i{padding:18px 20px;}
+.wmt{font-size:16px;font-weight:900;letter-spacing:2px;color:#fff;font-family:'Syne',sans-serif;}
+.wmd-d{font-size:12px;color:rgba(255,255,255,.7);margin-top:4px;padding-left:32px;}
+.wdot{color:var(--muted);font-size:11px;letter-spacing:2px;text-align:center;}
+.wwdot{display:flex;gap:6px;justify-content:center;margin-top:8px;}
+.wd3{width:8px;height:8px;border-radius:50%;background:var(--acc);animation:wpul 1.2s infinite;}
+.wd3:nth-child(2){animation-delay:.2s;}.wd3:nth-child(3){animation-delay:.4s;}
+.werr{color:#e05555;font-size:13px;text-align:center;}
+.whdr{display:flex;align-items:center;gap:10px;width:100%;}
+.whdr h2{flex:1;text-align:center;font-size:17px;letter-spacing:3px;font-family:'Syne',sans-serif;color:var(--fg);}
+.wbdg{font-size:11px;background:var(--tb);padding:4px 10px;border-radius:6px;border:1px solid var(--brd);letter-spacing:2px;font-family:'Syne',sans-serif;color:var(--fg);}
+#wtoast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1e1e2e;color:var(--fg);padding:10px 22px;border-radius:8px;font-weight:700;font-size:14px;border:1px solid var(--brd);display:none;z-index:999;text-align:center;max-width:300px;}
+@keyframes wpul{0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.4);opacity:.5;}}
+@keyframes wshk{0%,100%{transform:translateX(0);}20%{transform:translateX(-8px);}40%{transform:translateX(8px);}60%{transform:translateX(-5px);}80%{transform:translateX(5px);}}
+.wshk{animation:wshk .4s ease!important;}
+
+/* ── SKRIBBL ── */
+#sv{background:#FFFBF5;overflow:hidden;font-family:'Nunito',sans-serif;color:#2D2013;}
+.ss{display:none;}
+.ss.on{display:flex;}
+#sv{--sr:#FF6B6B;--st:#4ECDC4;--sy:#FFE14D;--sg:#6EE7B7;--so:#FB923C;--spu:#C084FC;--sbd:#E8D5C4;--stx:#2D2013;--smt:#9B8B7A;--sbg:#FFFBF5;--scd:#FFFFFF;--srd:14px;--ssh:0 4px 0 #D4B896;}
+.si{width:100%;background:#FFF8F0;border:2px solid var(--sbd);border-radius:10px;padding:11px 14px;font-size:15px;font-weight:600;color:var(--stx);font-family:'Nunito',sans-serif;}
+.si:focus{outline:none;border-color:var(--st);}
+.slb{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--smt);margin-bottom:5px;}
+.sfld{display:flex;flex-direction:column;gap:2px;width:100%;}
+.sb{border-radius:10px;padding:11px 20px;font-weight:900;font-size:14px;letter-spacing:.5px;color:white;border:2px solid transparent;cursor:pointer;font-family:'Nunito',sans-serif;text-transform:uppercase;}
+.sb:active{transform:translateY(2px);}
+.sb-fl{width:100%;padding:14px;font-size:15px;}
+.sb-r{background:var(--sr);box-shadow:0 4px 0 #CC3333;border-color:#CC3333;}
+.sb-t{background:var(--st);box-shadow:0 4px 0 #2A9D94;border-color:#2A9D94;}
+.sb-g{background:#D4C5B4;box-shadow:0 3px 0 #B8A898;border-color:#B8A898;color:var(--stx);}
+.sc{background:var(--scd);border:2px solid var(--sbd);border-radius:var(--srd);padding:24px;box-shadow:var(--ssh);width:100%;max-width:380px;}
+.sc h2{font-family:'Fredoka One',cursive;font-size:20px;margin-bottom:16px;color:var(--stx);}
+.srcode{background:var(--sy);border:2px solid #B89A00;border-radius:8px;padding:5px 12px;font-family:'Fredoka One',cursive;font-size:22px;letter-spacing:3px;color:#2D2013;}
+.serr{color:var(--sr);font-size:13px;font-weight:700;text-align:center;min-height:20px;}
+#sgame{display:none;flex-direction:column;height:100vh;}
+#sgame.on{display:flex;}
+.sgh{display:flex;align-items:center;gap:10px;background:var(--scd);border-bottom:2px solid var(--sbd);padding:8px 14px;flex-shrink:0;flex-wrap:wrap;}
+.sgbr{font-family:'Fredoka One',cursive;font-size:22px;color:var(--stx);}
+.sghm{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;}
+.swd{font-family:'Fredoka One',cursive;font-size:22px;letter-spacing:6px;color:var(--stx);text-transform:uppercase;}
+.swd.iw{color:var(--sr);}
+.sri{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--smt);}
+.stmw{display:flex;flex-direction:column;align-items:center;gap:3px;width:70px;}
+.stmn{font-family:'Fredoka One',cursive;font-size:28px;line-height:1;text-align:center;color:var(--stx);}
+.stmn.urg{color:var(--sr);animation:spur .5s infinite;}
+@keyframes spur{0%,100%{opacity:1}50%{opacity:.5}}
+.stmb{width:100%;height:6px;background:var(--sbd);border-radius:6px;overflow:hidden;}
+.stmf{height:100%;background:var(--st);border-radius:6px;transition:width .3s linear,background .3s;}
+.stmf.urg{background:var(--sr);}
+.sgb{display:flex;flex:1;overflow:hidden;}
+.spp{width:150px;flex-shrink:0;overflow-y:auto;border-right:2px solid var(--sbd);padding:10px 8px;display:flex;flex-direction:column;gap:6px;background:var(--scd);}
+.sppl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--smt);margin-bottom:2px;}
+.sprow{display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:10px;font-size:13px;font-weight:700;border:2px solid transparent;}
+.sprow.drw{background:#FFF3E0;border-color:var(--so);}
+.sprow.gsd{background:#F0FFF4;border-color:var(--sg);}
+.spnm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--stx);}
+.spsc{font-family:'Fredoka One',cursive;font-size:16px;color:var(--stx);}
+.spdt{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.sca{flex:1;display:flex;flex-direction:column;overflow:hidden;background:#F8F4F0;}
+.scc{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#F0EDE8;border:3px solid var(--sbd);margin:8px;border-radius:12px;}
+#scanv{display:block;max-width:100%;max-height:100%;object-fit:contain;cursor:crosshair;touch-action:none;}
+.stb{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--scd);border-top:2px solid var(--sbd);flex-wrap:wrap;flex-shrink:0;}
+.stb.hid{display:none;}
+.sclr{display:flex;flex-wrap:wrap;gap:4px;flex:1;}
+.ssw{width:24px;height:24px;border-radius:6px;border:2px solid transparent;cursor:pointer;transition:transform .1s;}
+.ssw:hover{transform:scale(1.2);}
+.ssw.on{border-color:#333;transform:scale(1.25);box-shadow:0 2px 6px rgba(0,0,0,.3);}
+.stsep{width:2px;height:30px;background:var(--sbd);border-radius:2px;}
+.ssz{display:flex;gap:5px;align-items:center;}
+.sszb{background:var(--sbg);border:2px solid var(--sbd);border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.sszb.on{border-color:var(--st);background:#E0F7F5;}
+.sszd{background:var(--stx);border-radius:50%;}
+.stlb{background:var(--sbg);border:2px solid var(--sbd);border-radius:8px;padding:5px 10px;font-size:13px;font-weight:700;cursor:pointer;color:var(--stx);}
+.stlb.on{border-color:var(--sr);background:#FFF0F0;}
+.scht{width:220px;flex-shrink:0;display:flex;flex-direction:column;border-left:2px solid var(--sbd);background:var(--scd);}
+.schm{flex:1;overflow-y:auto;padding:10px 8px;display:flex;flex-direction:column;gap:5px;}
+.scmsg{font-size:13px;line-height:1.4;word-break:break-word;color:var(--stx);}
+.scmsg .smn{font-weight:800;margin-right:4px;}
+.scmsg.sys{color:var(--smt);font-style:italic;text-align:center;font-size:12px;}
+.scmsg.ok{background:#F0FFF4;border-radius:8px;padding:5px 8px;color:#22863A;font-weight:700;font-size:12px;text-align:center;}
+.scia{display:flex;gap:6px;padding:8px;border-top:2px solid var(--sbd);}
+.scin{flex:1;background:#FFF8F0;border:2px solid var(--sbd);border-radius:8px;padding:8px 10px;font-size:13px;font-weight:600;color:var(--stx);font-family:'Nunito',sans-serif;}
+.scin:focus{outline:none;border-color:var(--st);}
+.scsnd{background:var(--st);color:white;border:none;border-radius:8px;padding:0 12px;font-size:16px;font-weight:900;cursor:pointer;}
+.sovl{position:absolute;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(4px);padding:16px;}
+.sovl.on{display:flex;}
+.sovc{background:var(--scd);border:3px solid var(--sbd);border-radius:20px;padding:28px 24px;max-width:440px;width:100%;text-align:center;}
+.sovt{font-family:'Fredoka One',cursive;font-size:28px;margin-bottom:6px;color:var(--stx);}
+.sovs{color:var(--smt);font-size:14px;margin-bottom:20px;}
+.swcs{display:flex;flex-direction:column;gap:10px;}
+.swcb{background:#FFF8F0;border:2px solid var(--sbd);border-radius:12px;padding:16px 20px;font-family:'Fredoka One',cursive;font-size:24px;letter-spacing:2px;cursor:pointer;color:var(--stx);text-transform:uppercase;}
+.swcb:hover{background:var(--sy);border-color:#B89A00;}
+.srw{font-family:'Fredoka One',cursive;font-size:40px;color:var(--sr);letter-spacing:3px;text-transform:uppercase;margin:10px 0;}
+.srss{display:flex;flex-direction:column;gap:8px;margin-top:16px;}
+.srsr{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:10px;background:#FFF8F0;border:2px solid var(--sbd);}
+.srrk{font-family:'Fredoka One',cursive;font-size:22px;width:30px;}
+.srnm{flex:1;font-weight:800;font-size:14px;color:var(--stx);}
+.srpt{font-family:'Fredoka One',cursive;font-size:20px;color:var(--st);}
+.spdm{display:flex;align-items:flex-end;justify-content:center;gap:10px;margin:16px 0;}
+.spdms{display:flex;flex-direction:column;align-items:center;gap:6px;}
+.spdmb{border-radius:10px 10px 0 0;width:90px;display:flex;align-items:center;justify-content:center;font-family:'Fredoka One',cursive;font-size:32px;}
+.spdmn{font-weight:900;font-size:13px;text-align:center;color:var(--stx);}
+#stoast{position:absolute;top:70px;left:50%;transform:translateX(-50%);background:#2D2013;color:white;padding:10px 20px;border-radius:30px;font-weight:700;font-size:14px;display:none;z-index:200;white-space:nowrap;}
+@media(max-width:680px){.spp{width:100px;}.scht{width:160px;}}
+@media(max-width:500px){.spp{display:none;}.scht{width:130px;}}
+
+/* ── SPY ── */
+#pv{background:#080810;overflow:hidden;font-family:'DM Sans',sans-serif;background-image:radial-gradient(ellipse 70% 50% at 50% -5%,rgba(109,40,217,.18) 0%,transparent 60%);}
+#pv{--pa:#00e5b0;--pb:#6d28d9;--pr:#ff3b57;--pw:#f59e0b;--ps:#0f0f1a;--ps2:#161625;--ps3:#1e1e32;--pbd:rgba(255,255,255,0.07);}
+.psc{display:none;position:absolute;inset:0;z-index:1;overflow-y:auto;padding:24px 16px 80px;align-items:flex-start;justify-content:center;}
+.psc.on{display:flex;animation:pfu .35s ease both;}
+@keyframes pfu{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:none;}}
+.pw{width:100%;max-width:480px;}
+#pv .logo{font-family:'Bebas Neue',cursive;background:linear-gradient(135deg,#fff 20%,#00e5b0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:3px;line-height:1;text-align:center;}
+#pv .sub{text-align:center;color:#62628a;font-size:12px;letter-spacing:2.5px;text-transform:uppercase;}
+#pv .pcard{background:var(--ps);border:1px solid var(--pbd);border-radius:18px;padding:20px;margin-bottom:14px;}
+#pv .pc-lbl{font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:var(--pa);font-weight:700;margin-bottom:14px;}
+#pv input,#pv select{width:100%;background:var(--ps2);border:1px solid var(--pbd);border-radius:12px;padding:14px 16px;color:#eeeef5;font-family:'DM Sans',sans-serif;font-size:15px;outline:none;transition:border-color .2s;-webkit-appearance:none;}
+#pv input:focus,#pv select:focus{border-color:var(--pa);box-shadow:0 0 0 3px rgba(0,229,176,.12);}
+#pv input::placeholder{color:#62628a;}
+#pv select option{background:#161625;}
+#pv .pbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:15px;border-radius:13px;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;transition:all .2s;}
+#pv .pbtn-p{background:linear-gradient(135deg,var(--pa),#00b88c);color:#080810;box-shadow:0 4px 22px rgba(0,229,176,.3);}
+#pv .pbtn-p:hover:not(:disabled){transform:translateY(-2px);}
+#pv .pbtn-p:disabled{opacity:.38;cursor:not-allowed;}
+#pv .pbtn-g{background:var(--ps2);color:#eeeef5;border:1px solid var(--pbd);}
+#pv .pbtn-g:hover{border-color:var(--pa);color:var(--pa);}
+#pv .pbtn-d{background:linear-gradient(135deg,var(--pr),#c0392b);color:#fff;box-shadow:0 4px 18px rgba(255,59,87,.25);}
+#pv .pbtn-sm{padding:10px 16px;font-size:13px;width:auto;border-radius:10px;}
+#pv .pbtn-grp{display:flex;flex-direction:column;gap:10px;}
+#pv .prcd{font-family:'Bebas Neue',cursive;font-size:56px;letter-spacing:8px;text-align:center;color:var(--pa);background:var(--ps2);border:1px solid rgba(0,229,176,.2);border-radius:16px;padding:16px;margin-bottom:4px;cursor:pointer;user-select:all;}
+#pv .pcp{text-align:center;font-size:11px;color:#62628a;letter-spacing:1px;margin-bottom:16px;}
+#pv .pplst{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
+#pv .pprow{display:flex;align-items:center;gap:12px;background:var(--ps2);border-radius:12px;padding:11px 14px;border:1px solid var(--pbd);animation:pfu .25s ease;}
+#pv .pav{width:34px;height:34px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#080810;}
+#pv .pnm{flex:1;font-size:14px;font-weight:500;}
+#pv .phbdg{font-size:10px;letter-spacing:1px;padding:3px 8px;border-radius:20px;background:rgba(0,229,176,.12);color:var(--pa);border:1px solid rgba(0,229,176,.25);font-weight:600;text-transform:uppercase;}
+#pv .psr{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--pbd);}
+#pv .psr:last-child{border-bottom:none;}
+#pv .psr select{width:auto;min-width:88px;padding:8px 12px;font-size:13px;}
+#pv .pstbar{display:flex;align-items:center;gap:10px;background:var(--ps2);border-radius:12px;padding:12px 14px;border:1px solid var(--pbd);margin-bottom:14px;}
+#pv .ppdot{width:9px;height:9px;border-radius:50%;background:var(--pa);box-shadow:0 0 8px var(--pa);animation:ppul 2s infinite;flex-shrink:0;}
+#pv .ppdot.r{background:var(--pr);box-shadow:0 0 8px var(--pr);}
+@keyframes ppul{0%,100%{transform:scale(1);}50%{transform:scale(1.3);opacity:.7;}}
+#pv .pcwrap{perspective:1000px;width:100%;max-width:340px;margin:0 auto 20px;cursor:pointer;}
+#pv .pc3d{width:100%;aspect-ratio:3/2;position:relative;transform-style:preserve-3d;transition:transform .75s cubic-bezier(.4,0,.2,1);border-radius:18px;}
+#pv .pc3d.fl{transform:rotateY(180deg);}
+#pv .pcface{position:absolute;inset:0;border-radius:18px;backface-visibility:hidden;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;}
+#pv .pcback{background:linear-gradient(145deg,var(--ps2),var(--ps));border:1px solid var(--pbd);}
+#pv .pcfr{transform:rotateY(180deg);padding:24px;text-align:center;}
+#pv .pcfr.civ{background:linear-gradient(135deg,#071e1a,#0c2e28,#071e1a);border:1px solid rgba(0,229,176,.3);}
+#pv .pcfr.spy{background:linear-gradient(135deg,#1a0010,#2a0018,#1a0010);border:1px solid rgba(255,59,87,.35);}
+#pv .prbdg{font-size:10px;letter-spacing:2px;text-transform:uppercase;padding:5px 14px;border-radius:30px;font-weight:700;}
+#pv .civ .prbdg{background:rgba(0,229,176,.13);color:var(--pa);border:1px solid rgba(0,229,176,.28);}
+#pv .spy .prbdg{background:rgba(255,59,87,.13);color:var(--pr);border:1px solid rgba(255,59,87,.28);}
+#pv .pwbig{font-family:'Bebas Neue',cursive;font-size:clamp(26px,8vw,42px);letter-spacing:2px;color:var(--pa);}
+#pv .spy .pwbig{color:var(--pr);font-size:20px;line-height:1.4;}
+#pv .twr{position:relative;display:inline-flex;align-items:center;justify-content:center;}
+#pv .tsvg{transform:rotate(-90deg);}
+#pv .tbg{fill:none;stroke:var(--ps2);stroke-width:6;}
+#pv .tfill{fill:none;stroke-width:6;stroke-linecap:round;transition:stroke-dashoffset 1s linear,stroke .5s;}
+#pv .tnum{position:absolute;font-family:'Bebas Neue',cursive;font-size:40px;letter-spacing:2px;text-align:center;}
+#pv .pvlst{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
+#pv .pvbtn{display:flex;align-items:center;gap:14px;background:var(--ps2);border:1px solid var(--pbd);border-radius:13px;padding:13px 15px;cursor:pointer;width:100%;font-family:'DM Sans',sans-serif;font-size:14px;color:#eeeef5;font-weight:500;}
+#pv .pvbtn:hover{border-color:var(--pa);}
+#pv .pvbtn.sel{border-color:var(--pa);background:rgba(0,229,176,.09);color:var(--pa);}
+#pv .rhr{text-align:center;border-radius:18px;padding:28px 20px;margin-bottom:14px;}
+#pv .rhr.win{background:linear-gradient(135deg,rgba(0,229,176,.1),rgba(0,188,140,.04));border:1px solid rgba(0,229,176,.22);}
+#pv .rhr.los{background:linear-gradient(135deg,rgba(255,59,87,.1),rgba(192,57,43,.04));border:1px solid rgba(255,59,87,.22);}
+#pv .rtit{font-family:'Bebas Neue',cursive;font-size:46px;letter-spacing:3px;}
+#pv .win .rtit{color:var(--pa);}
+#pv .los .rtit{color:var(--pr);}
+#pv .rrlst{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
+#pv .rrrow{display:flex;align-items:center;gap:10px;background:var(--ps2);border-radius:12px;padding:11px 14px;border:1px solid var(--pbd);}
+#pv .rrrow.ispy{border-color:rgba(255,59,87,.3);background:rgba(255,59,87,.05);}
+#pv .rbdg{font-size:10px;letter-spacing:1px;padding:3px 9px;border-radius:20px;font-weight:700;}
+#pv .rbdg-s{background:rgba(255,59,87,.18);color:var(--pr);}
+#pv .rbdg-c{background:rgba(0,229,176,.13);color:var(--pa);}
+#pv .ggrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
+#pv .ggbtn{background:var(--ps2);border:1px solid var(--pbd);border-radius:10px;padding:13px;color:#eeeef5;font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;font-weight:500;}
+#pv .ggbtn:hover{border-color:var(--pr);color:var(--pr);}
+#pv .ggbtn.ok{border-color:var(--pa);color:var(--pa);}
+#pv .ggbtn.ng{border-color:var(--pr);color:var(--pr);}
+#pv .ptag{display:inline-flex;align-items:center;justify-content:center;background:rgba(0,229,176,.12);color:var(--pa);border-radius:20px;padding:2px 10px;font-size:12px;font-weight:700;border:1px solid rgba(0,229,176,.22);}
+#pv .pwait{text-align:center;padding:24px 0;color:#62628a;font-size:14px;}
+#pv .pwait .dots span{animation:pblink 1.4s infinite;opacity:0;}
+#pv .pwait .dots span:nth-child(2){animation-delay:.2s;}
+#pv .pwait .dots span:nth-child(3){animation-delay:.4s;}
+@keyframes pblink{0%,80%,100%{opacity:0;}40%{opacity:1;}}
+#pv .spl{font-size:56px;text-align:center;display:block;margin-bottom:12px;}
+#pv .perr{color:var(--pr);font-size:13px;margin-top:8px;text-align:center;min-height:20px;}
+#pv .spkl{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;position:fixed;bottom:12px;left:0;right:0;z-index:50;pointer-events:none;}
+#pv .spkpil{background:rgba(255,59,87,.15);border:1px solid rgba(255,59,87,.35);color:var(--pr);font-size:11px;font-weight:600;border-radius:20px;padding:3px 10px;animation:ppul 1s infinite;}
+</style>
+</head>
+<body>
+
+<!-- ════ HUB ════ -->
+<div id="hub">
+  <div class="hub-logo">GAME HUB</div>
+  <div class="hub-sub">Pilih game yang mau dimainkan</div>
+  <div class="hub-games">
+    <button class="hub-card hc-w" onclick="openGame('w')">
+      <div class="hub-inner"><div class="hub-icon">🟩</div><div><div class="hub-title">WORDLE</div><div class="hub-desc">Tebak kata 5 huruf · Singleplayer, Battle 1v1 &amp; Race</div></div><div class="hub-arr">›</div></div>
+    </button>
+    <button class="hub-card hc-s" onclick="openGame('s')">
+      <div class="hub-inner"><div class="hub-icon">🎨</div><div><div class="hub-title">GAMBAR YUK!</div><div class="hub-desc">Tebak gambar multiplayer · 8 kategori kata</div></div><div class="hub-arr">›</div></div>
+    </button>
+    <button class="hub-card hc-p" onclick="openGame('p')">
+      <div class="hub-inner"><div class="hub-icon">🕵️</div><div><div class="hub-title">WHO'S THE SPY?</div><div class="hub-desc">Temukan spy di antara pemain · Chat &amp; Voice</div></div><div class="hub-arr">›</div></div>
+    </button>
+  </div>
+</div>
+<button id="hback" onclick="backToHub()">← Hub</button>
+
+<!-- ════ WORDLE VIEW ════ -->
+<div id="wv" class="gview">
+<div id="wtoast"></div>
+<div id="ws-home" class="ws on">
+  <div style="margin-top:28px;margin-bottom:4px;"><div class="wtit">WORDLE</div><div style="font-size:11px;color:#666;letter-spacing:5px;text-align:center;margin-top:6px;">TEBAK KATA · 3 MODE · 🇮🇩 + 🇺🇸</div></div>
+  <div style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:380px;">
+    <button class="wmd" style="background:linear-gradient(135deg,#4a9c59,#2d7a44);" onclick="wSS('single')"><div class="wmd-i"><div style="display:flex;align-items:center;gap:10px;"><span style="font-size:22px;">🎯</span><span class="wmt">SINGLEPLAYER</span></div><div class="wmd-d">Tebak kata yang dipilih sistem</div></div></button>
+    <button class="wmd" style="background:linear-gradient(135deg,#c8962a,#9a6e10);" onclick="wSS('btl-mn')"><div class="wmd-i"><div style="display:flex;align-items:center;gap:10px;"><span style="font-size:22px;">⚔️</span><span class="wmt">BATTLE 1v1</span></div><div class="wmd-d">Pilih kata untuk ditebak lawan</div></div></button>
+    <button class="wmd" style="background:linear-gradient(135deg,#7c5cbf,#5a3e9e);" onclick="wSS('race-mn')"><div class="wmd-i"><div style="display:flex;align-items:center;gap:10px;"><span style="font-size:22px;">🏁</span><span class="wmt">RACE MODE</span></div><div class="wmd-d">Siapa cepat dia menang!</div></div></button>
+  </div>
+  <div class="wcard" style="max-width:380px;">
+    <div class="wlbl">Cara Baca</div>
+    <div style="display:flex;flex-direction:column;gap:7px;">
+      <div style="display:flex;align-items:center;gap:10px;"><div style="width:22px;height:22px;border-radius:4px;background:#4a9c59;flex-shrink:0;"></div><span style="font-size:12px;color:#666;">Huruf tepat di posisi yang benar</span></div>
+      <div style="display:flex;align-items:center;gap:10px;"><div style="width:22px;height:22px;border-radius:4px;background:#c8962a;flex-shrink:0;"></div><span style="font-size:12px;color:#666;">Ada di kata, tapi posisi salah</span></div>
+      <div style="display:flex;align-items:center;gap:10px;"><div style="width:22px;height:22px;border-radius:4px;background:#1c1c28;border:1px solid #444;flex-shrink:0;"></div><span style="font-size:12px;color:#666;">Huruf tidak ada dalam kata</span></div>
+    </div>
+  </div>
+</div>
+<div id="ws-single" class="ws">
+  <div class="whdr"><button class="wb wb-bk wb-sm" onclick="wSS('home')">← Kembali</button><h2>SINGLEPLAYER</h2><button class="wb wb-pu wb-sm" onclick="wInitSingle()">BARU</button></div>
+  <div class="wlt"><button class="wlb on" id="wsl-id" onclick="wSetSLang('id')">🇮🇩 Indonesia</button><button class="wlb" id="wsl-en" onclick="wSetSLang('en')">🇺🇸 English</button></div>
+  <div id="w-sb"></div><div class="wkb" id="w-sk"></div>
+  <button id="w-sag" class="wb wb-gr wb-fl" style="display:none;max-width:380px;" onclick="wInitSingle()">🎉 Main Lagi!</button>
+</div>
+<div id="ws-btl-mn" class="ws">
+  <div class="whdr"><button class="wb wb-bk wb-sm" onclick="wSS('home')">← Kembali</button><h2>⚔️ BATTLE 1v1</h2></div>
+  <div class="wlt" style="max-width:380px;"><button class="wlb on" id="wbl-id" onclick="wSetBLang('id')">🇮🇩 Indonesia</button><button class="wlb" id="wbl-en" onclick="wSetBLang('en')">🇺🇸 English</button></div>
+  <input class="wi" id="wb-nm" placeholder="Nama kamu..." maxlength="16" style="text-align:center;max-width:380px;"/>
+  <button class="wb wb-go wb-fl" style="max-width:380px;" onclick="wBCreate()">🎮 Buat Room (Player 1)</button>
+  <div class="wdot" style="max-width:380px;width:100%;">— ATAU GABUNG ROOM —</div>
+  <div style="display:flex;gap:8px;width:100%;max-width:380px;">
+    <input class="wi wi-c" id="wb-jcd" placeholder="KODE ROOM" maxlength="5" style="flex:1;" oninput="this.value=this.value.toUpperCase()"/>
+    <button class="wb wb-gr" onclick="wBJoin()">Gabung</button>
+  </div>
+  <div id="wb-merr" class="werr" style="display:none;"></div>
+</div>
+<div id="ws-btl-wd" class="ws">
+  <div class="whdr"><button class="wb wb-bk wb-sm" onclick="wSS('home')">← Keluar</button><h2>⚔️ BATTLE 1v1</h2><div class="wbdg" id="wb-rbdg"></div></div>
+  <div class="wcard" style="max-width:380px;text-align:center;border-color:#7c5cbf;"><div class="wlbl">Kamu Bermain Sebagai</div><div id="wb-rl" style="font-family:'Syne',sans-serif;font-size:22px;font-weight:900;color:#7c5cbf;"></div></div>
+  <div id="wb-wait-op" style="text-align:center;padding:20px 0;display:none;"><div style="font-size:13px;color:#666;">Menunggu lawan bergabung...</div><div class="wwdot"><div class="wd3"></div><div class="wd3"></div><div class="wd3"></div></div></div>
+  <div id="wb-wform" style="max-width:380px;width:100%;">
+    <div style="font-size:13px;color:#666;text-align:center;margin-bottom:12px;">Pilih kata <strong>5 huruf</strong> yang harus ditebak lawan.</div>
+    <input class="wi wi-c" id="wb-winp" placeholder="KATA RAHASIA" maxlength="5" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')wBSetWord()" style="margin-bottom:10px;"/>
+    <div id="wb-werr" class="werr" style="display:none;margin-bottom:8px;"></div>
+    <button class="wb wb-go wb-fl" onclick="wBSetWord()">Kunci Kata ✓</button>
+  </div>
+  <div id="wb-wlkd" style="text-align:center;padding:20px;display:none;"><div style="font-size:32px;">🔒</div><div style="font-family:'Syne',sans-serif;font-size:16px;letter-spacing:2px;margin-top:8px;">Kata terkunci!</div><div style="font-size:13px;color:#666;margin-top:6px;">Menunggu lawan memilih kata...</div><div class="wwdot"><div class="wd3"></div><div class="wd3"></div><div class="wd3"></div></div></div>
+</div>
+<div id="ws-btl-gm" class="ws">
+  <div class="whdr"><button class="wb wb-bk wb-sm" onclick="wBLeave()">← Keluar</button><h2>⚔️ BATTLE 1v1</h2><div class="wbdg" id="wb-grbdg"></div></div>
+  <div class="wcard" style="max-width:380px;text-align:center;margin-bottom:4px;"><div class="wlbl">Tebak Kata Rahasia Lawan!</div><div id="wb-vslbl" style="font-size:13px;color:#666;"></div></div>
+  <div id="wb-wnbr" style="display:none;width:100%;max-width:380px;"></div>
+  <div id="w-bb"></div><div class="wkb" id="w-bk"></div>
+  <div id="wb-endb" style="display:none;margin-top:10px;flex-direction:column;gap:8px;width:100%;max-width:380px;">
+    <button class="wb wb-go wb-fl" onclick="wBRestart()">🔄 Main Lagi di Room</button>
+    <button class="wb wb-bk wb-fl" onclick="wBLeave()">🚪 Keluar Room</button>
+  </div>
+</div>
+<div id="ws-race-mn" class="ws">
+  <div class="whdr"><button class="wb wb-bk wb-sm" onclick="wSS('home')">← Kembali</button><h2>🏁 RACE MODE</h2></div>
+  <div class="wlt" style="max-width:380px;"><button class="wlb on" id="wrl-id" onclick="wSetRLang('id')">🇮🇩 Indonesia</button><button class="wlb" id="wrl-en" onclick="wSetRLang('en')">🇺🇸 English</button></div>
+  <input class="wi" id="wr-nm" placeholder="Nama kamu..." maxlength="16" style="text-align:center;max-width:380px;"/>
+  <button class="wb wb-pu wb-fl" style="max-width:380px;" onclick="wRCreate()">🎮 Buat Room Baru</button>
+  <div class="wdot" style="max-width:380px;width:100%;">— ATAU GABUNG ROOM —</div>
+  <div style="display:flex;gap:8px;width:100%;max-width:380px;">
+    <input class="wi wi-c" id="wr-jcd" placeholder="KODE" maxlength="4" style="flex:1;" onkeydown="if(event.key==='Enter')wRJoin()"/>
+    <button class="wb wb-gr" onclick="wRJoin()">Gabung</button>
+  </div>
+  <div id="wr-merr" class="werr" style="display:none;"></div>
+</div>
+<div id="ws-race-gm" class="ws">
+  <div class="whdr"><button class="wb wb-bk wb-sm" onclick="wRLeave()">← Keluar</button><h2>🏁 RACE MODE</h2><div class="wbdg" id="wr-rbdg"></div></div>
+  <div class="wcard" style="width:100%;max-width:380px;"><div class="wlbl" id="wr-pcnt">PEMAIN</div><div class="wsb" id="wr-sb"></div></div>
+  <div id="wr-wnbr" style="display:none;width:100%;max-width:380px;"></div>
+  <div id="w-rb"></div><div class="wkb" id="w-rk"></div>
+  <div id="wr-endb" style="display:none;margin-top:10px;flex-direction:column;gap:8px;width:100%;max-width:380px;">
+    <button class="wb wb-pu wb-fl" onclick="wRRestart()">🔄 Main Lagi di Room</button>
+    <button class="wb wb-bk wb-fl" onclick="wRLeave()">🚪 Keluar Room</button>
+  </div>
+</div>
+</div><!-- #wv -->
+
+<!-- ════ SKRIBBL VIEW ════ -->
+<div id="sv" class="gview">
+<div id="stoast"></div>
+<div id="ss-home" class="ss on" style="flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px 16px;gap:20px;overflow-y:auto;position:absolute;inset:0;">
+  <div style="font-family:'Fredoka One',cursive;font-size:56px;line-height:1;background:linear-gradient(135deg,#FF6B6B 0%,#FFE14D 50%,#4ECDC4 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-align:center;">Gambar Yuk!</div>
+  <div style="color:#9B8B7A;font-size:12px;letter-spacing:3px;text-transform:uppercase;">🎨 Tebak gambar multiplayer</div>
+  <div class="sc">
+    <h2>🆕 Buat Room</h2>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div class="sfld"><div class="slb">Nama Kamu</div><input class="si" id="sk-cnm" placeholder="Masukkan nama..." maxlength="16"/></div>
+      <div class="sfld"><div class="slb">Kategori Kata</div>
+        <select class="si" id="sk-ccat">
+          <option value="Hewan">🐾 Hewan</option><option value="Makanan">🍜 Makanan</option>
+          <option value="Kendaraan">🚗 Kendaraan</option><option value="Benda">📦 Benda</option>
+          <option value="Alam">🌋 Alam</option><option value="Profesi">👷 Profesi</option>
+          <option value="Olahraga">⚽ Olahraga</option><option value="Bangunan">🏠 Bangunan</option>
+        </select>
+      </div>
+      <div class="sfld"><div class="slb">Jumlah Ronde</div>
+        <select class="si" id="sk-crd"><option value="2">2 Ronde</option><option value="3" selected>3 Ronde</option><option value="4">4 Ronde</option><option value="5">5 Ronde</option></select>
+      </div>
+      <div class="serr" id="sk-cerr"></div>
+      <button class="sb sb-r sb-fl" onclick="skCreate()">🎮 Buat Room</button>
+    </div>
+  </div>
+  <div class="sc">
+    <h2>🔗 Gabung Room</h2>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div class="sfld"><div class="slb">Nama Kamu</div><input class="si" id="sk-jnm" placeholder="Masukkan nama..." maxlength="16"/></div>
+      <div class="sfld"><div class="slb">Kode Room</div>
+        <input class="si" id="sk-jcd" placeholder="KODE ROOM" maxlength="5" style="text-transform:uppercase;letter-spacing:4px;font-family:'Fredoka One',cursive;font-size:20px;" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')skJoin()"/>
+      </div>
+      <div class="serr" id="sk-jerr"></div>
+      <button class="sb sb-t sb-fl" onclick="skJoin()">🚪 Gabung</button>
+    </div>
+  </div>
+</div>
+<div id="ss-lobby" class="ss" style="flex-direction:column;align-items:center;min-height:100vh;padding:24px 16px;gap:16px;overflow-y:auto;position:absolute;inset:0;">
+  <div style="display:flex;align-items:center;gap:10px;width:100%;max-width:520px;">
+    <button class="sb sb-g" onclick="skLeave()" style="padding:8px 14px;font-size:13px;">← Keluar</button>
+    <div style="font-family:'Fredoka One',cursive;font-size:24px;flex:1;text-align:center;color:#2D2013;">🎨 Ruang Tunggu</div>
+  </div>
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center;">
+    <div><div class="slb">Kode Room</div><div class="srcode" id="sk-lcode">-----</div></div>
+    <div><div class="slb">Kategori</div><div style="font-weight:800;font-size:16px;color:#2D2013;" id="sk-lcat">-</div></div>
+    <div><div class="slb">Ronde</div><div style="font-weight:800;font-size:16px;color:#2D2013;" id="sk-lrd">-</div></div>
+  </div>
+  <div class="sc" style="max-width:520px;"><div class="slb" style="margin-bottom:12px;">Pemain di Room</div><div style="display:flex;flex-wrap:wrap;gap:10px;" id="sk-lplyr"></div></div>
+  <div style="max-width:380px;width:100%;">
+    <div class="serr" id="sk-lerr" style="margin-bottom:8px;"></div>
+    <button class="sb sb-r sb-fl" id="sk-lstart" onclick="skStart()" style="display:none;">🚀 Mulai Game!</button>
+    <div id="sk-lwait" style="text-align:center;color:#9B8B7A;font-size:14px;font-style:italic;">Menunggu host memulai game...</div>
+  </div>
+</div>
+<div id="sgame">
+  <div class="sgh">
+    <div class="sgbr">🎨 Gambar Yuk!</div>
+    <div class="sghm"><div class="swd" id="sk-wd">· · · · ·</div><div class="sri" id="sk-ri">Menunggu ronde dimulai</div></div>
+    <div class="stmw"><div class="stmn" id="sk-tmn">—</div><div class="stmb"><div class="stmf" id="sk-tmf" style="width:100%;"></div></div></div>
+  </div>
+  <div class="sgb">
+    <div class="spp"><div class="sppl">Pemain</div><div id="sk-gplyr"></div></div>
+    <div class="sca">
+      <div class="scc"><canvas id="scanv"></canvas></div>
+      <div class="stb hid" id="sk-tb">
+        <div class="sclr" id="sk-clr"></div>
+        <div class="stsep"></div>
+        <div class="ssz">
+          <button class="sszb on" data-sz="4" onclick="skSetSz(4)"><div class="sszd" style="width:6px;height:6px;"></div></button>
+          <button class="sszb" data-sz="8" onclick="skSetSz(8)"><div class="sszd" style="width:10px;height:10px;"></div></button>
+          <button class="sszb" data-sz="14" onclick="skSetSz(14)"><div class="sszd" style="width:14px;height:14px;"></div></button>
+          <button class="sszb" data-sz="22" onclick="skSetSz(22)"><div class="sszd" style="width:18px;height:18px;"></div></button>
+        </div>
+        <div class="stsep"></div>
+        <button class="stlb" id="sk-erb" onclick="skErase()">🩹 Hapus</button>
+        <button class="stlb" style="background:#D4C5B4;border-color:#B8A898;color:#2D2013;" onclick="skClear()">🗑️ Bersihkan</button>
+      </div>
+    </div>
+    <div class="scht">
+      <div class="schm" id="sk-chat"></div>
+      <div class="scia"><input class="scin" id="sk-cin" placeholder="Tebak..." maxlength="50" onkeydown="if(event.key==='Enter')skGuess()"/><button class="scsnd" onclick="skGuess()">➤</button></div>
+    </div>
+  </div>
+  <div class="sovl" id="sk-ov-choose"><div class="sovc"><div class="sovt">✏️ Kamu Gilirannya!</div><div class="sovs">Pilih kata yang akan digambar (15 detik)</div><div class="swcs" id="sk-wchoice"></div></div></div>
+  <div class="sovl" id="sk-ov-wait"><div class="sovc"><div class="sovt" id="sk-wwt">⏳ Menunggu...</div><div style="color:#9B8B7A;font-size:14px;font-style:italic;padding:20px 0;" id="sk-wws">sedang memilih kata...</div></div></div>
+  <div class="sovl" id="sk-ov-tend"><div class="sovc"><div class="sovt">⏰ Waktu Habis!</div><div style="color:#9B8B7A;font-size:13px;">Kata yang harus ditebak:</div><div class="srw" id="sk-tw"></div><div class="srss" id="sk-ts"></div></div></div>
+  <div class="sovl" id="sk-ov-end"><div class="sovc" style="max-width:480px;"><div class="sovt">🏆 Game Selesai!</div><div class="spdm" id="sk-pdm"></div><div class="srss" id="sk-fs" style="margin-top:0;"></div><div style="display:flex;gap:10px;margin-top:20px;"><button class="sb sb-g" style="flex:1;" onclick="skLeave()">🚪 Keluar</button><button class="sb sb-r" style="flex:1;" onclick="skRestart()">🔄 Main Lagi</button></div></div></div>
+</div>
+</div><!-- #sv -->
+
+<!-- ════ SPY VIEW ════ -->
+<div id="pv" class="gview">
+<div id="ps-home" class="psc on"><div class="pw">
+  <div style="margin:36px 0 40px;"><div class="logo" style="font-size:clamp(48px,15vw,80px);">WHO'S<br>THE SPY?</div><div class="sub" style="margin-top:6px;">🌐 Online Multiplayer</div></div>
+  <div class="pcard"><div class="pc-lbl">Namamu</div><input type="text" id="p-nm" placeholder="Masukkan namamu..." maxlength="14" autocomplete="off" autocapitalize="words"><div id="p-nerr" class="perr"></div></div>
+  <div class="pbtn-grp mt12">
+    <button class="pbtn pbtn-p" onclick="pCreate()">🚀 Buat Room</button>
+    <div style="display:flex;gap:10px;align-items:center;"><input type="text" id="p-jcd" placeholder="Kode room (4 huruf)" maxlength="4" style="text-transform:uppercase;letter-spacing:4px;font-family:'Bebas Neue',cursive;font-size:22px;text-align:center;" onkeydown="if(event.key==='Enter')pJoin()"><button class="pbtn pbtn-g pbtn-sm" onclick="pJoin()" style="flex-shrink:0;">Join</button></div>
+    <div id="p-jerr" class="perr"></div>
+  </div>
+  <div style="margin-top:14px;padding:14px 16px;background:rgba(245,158,11,.07);border-radius:14px;border:1px solid rgba(245,158,11,.25);"><div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#f59e0b;font-weight:700;margin-bottom:6px;">💡 Mode Bermain</div><div style="font-size:12.5px;color:#eeeef5;line-height:1.75;"><strong>1 perangkat:</strong> Buka beberapa tab browser<br><strong>Banyak perangkat:</strong> Pakai kode room yang sama</div></div>
+  <div style="margin-top:14px;padding:16px;background:var(--ps2);border-radius:14px;border:1px solid var(--pbd);"><div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#62628a;font-weight:700;margin-bottom:10px;">Cara Bermain</div><div style="font-size:13px;color:#eeeef5;line-height:1.8;">1. Satu orang <strong>Buat Room</strong>, bagikan kode ke teman<br>2. Teman lain <strong>Join</strong> pakai kode yang sama<br>3. Host atur setting &amp; mulai game<br>4. Semua dapat kata — Civilian &amp; Spy dapat kata <strong>berbeda tapi mirip</strong>!<br>5. Diskusi → Vote → Tangkap spy! 🕵️</div></div>
+</div></div>
+<div id="ps-lobby" class="psc"><div class="pw">
+  <div style="margin-bottom:20px;"><div class="logo" style="font-size:34px;">LOBBY</div><div class="sub">Bagikan kode ke teman!</div></div>
+  <div id="p-rcd" class="prcd" onclick="pCopy()">----</div>
+  <div class="pcp" id="p-cph">Tap untuk copy kode</div>
+  <div class="pcard" id="p-hset" style="display:none;">
+    <div class="pc-lbl">⚙️ Pengaturan</div>
+    <div class="psr"><div><div style="font-size:13.5px;">Jumlah Spy</div><div style="font-size:11px;color:#62628a;">Sesuai jumlah pemain</div></div><select id="p-spc"><option value="1">1 Spy</option><option value="2">2 Spy</option></select></div>
+    <div class="psr"><div><div style="font-size:13.5px;">Mode Diskusi</div></div><select id="p-gmd"><option value="chat">💬 Chat</option><option value="voice">🎙️ Voice</option></select></div>
+    <div class="psr"><div><div style="font-size:13.5px;">Waktu per Giliran</div></div><select id="p-tdr"><option value="20">20 detik</option><option value="30" selected>30 detik</option><option value="45">45 detik</option><option value="60">1 menit</option></select></div>
+    <div class="psr"><div><div style="font-size:13.5px;">Kategori</div></div><select id="p-cat"><option value="random">🎲 Acak</option><option value="food">🍔 Makanan</option><option value="place">🏖️ Tempat</option><option value="activity">⚽ Aktivitas</option><option value="sosmed">📱 Sosial Media</option><option value="thing">🔧 Benda</option></select></div>
+  </div>
+  <div class="pcard"><div class="pc-lbl">👥 Pemain <span class="ptag" id="p-lcnt">0</span></div><div class="pplst" id="p-lplyr"></div></div>
+  <div id="p-hbtns" class="pbtn-grp" style="display:none;"><button class="pbtn pbtn-p" id="p-startbtn" onclick="pHostStart()" disabled>▶ Mulai Game</button><button class="pbtn pbtn-g" onclick="pLeave()">← Keluar</button></div>
+  <div id="p-gbtns" class="pbtn-grp" style="display:none;"><div class="pwait">Nunggu host mulai game<span class="dots"><span>.</span><span>.</span><span>.</span></span></div><button class="pbtn pbtn-g" onclick="pLeave()">← Keluar</button></div>
+</div></div>
+<div id="ps-card" class="psc"><div class="pw">
+  <div style="margin-bottom:16px;"><div class="logo" style="font-size:32px;">KARTU MU</div><div class="sub">Lihat diam-diam, jangan ketauan!</div></div>
+  <div class="pstbar"><div class="ppdot"></div><div style="font-size:13px;color:#62628a;" id="p-ssen">Menunggu semua pemain melihat kartu...</div></div>
+  <div id="p-cwrap">
+    <div style="font-size:18px;font-weight:700;text-align:center;margin-bottom:16px;" id="p-rwho"></div>
+    <div class="pcwrap" onclick="pFlip()"><div class="pc3d" id="p-c3d"><div class="pcface pcback"><div style="font-size:44px;filter:drop-shadow(0 0 10px rgba(0,229,176,.45));position:relative;z-index:1;">🔒</div><div style="font-size:12px;color:#62628a;letter-spacing:1.5px;position:relative;z-index:1;">TAP UNTUK BUKA</div></div><div class="pcface pcfr" id="p-cfr"><div class="prbdg" id="p-rbdg" style="display:none;"></div><div style="font-size:32px;" id="p-rico"></div><div class="pwbig" id="p-cwd"></div><div style="font-size:11px;color:#62628a;" id="p-chnt"></div></div></div></div>
+    <div style="margin-top:14px;"><button class="pbtn pbtn-p" id="p-seenbtn" onclick="pMarkSeen()" style="display:none;">✓ Sudah Lihat</button></div>
+  </div>
+  <div id="p-woths" style="display:none;"><div class="pwait" style="margin-top:16px;">✅ Sudah dilihat. Nunggu yang lain<span class="dots"><span>.</span><span>.</span><span>.</span></span></div></div>
+  <div class="pcard" style="margin-top:16px;"><div class="pc-lbl">Siapa yang sudah lihat?</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;" id="p-spils"></div></div>
+</div></div>
+<div id="ps-disc" class="psc"><div class="pw">
+  <div style="margin-bottom:16px;text-align:center;"><div class="logo" style="font-size:30px;">GILIRAN BICARA</div><div class="sub" id="p-tmode">💬 Mode Chat</div></div>
+  <div class="pcard" style="margin-bottom:14px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;"><div class="pc-lbl" style="margin-bottom:0;">Giliran ke <span id="p-tidx">1</span> dari <span id="p-ttot">0</span></div><div class="ptag" id="p-tplyr">-</div></div>
+    <div id="p-tprog" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:8px;"></div>
+  </div>
+  <div style="display:flex;justify-content:center;margin-bottom:14px;">
+    <div class="twr"><svg class="tsvg" width="110" height="110" viewBox="0 0 130 130"><circle class="tbg" cx="65" cy="65" r="56"/><circle class="tfill" id="p-tc" cx="65" cy="65" r="56" stroke-dasharray="352" stroke-dashoffset="0"/></svg><div class="tnum" id="p-td">0:30</div></div>
+  </div>
+  <div style="text-align:center;font-size:13px;color:#62628a;" id="p-ts"></div>
+  <div id="p-myta" style="display:none;">
+    <div id="p-chata" style="display:none;">
+      <div class="pcard" style="border-color:rgba(0,229,176,.3);background:rgba(0,229,176,.04);">
+        <div class="pc-lbl">✍️ Giliranmu! Tulis petunjukmu</div>
+        <div style="font-size:12px;color:#62628a;margin-bottom:10px;">Jangan sebut kata langsung!</div>
+        <div style="display:flex;gap:8px;"><input type="text" id="p-tci" placeholder="Ketik petunjukmu..." maxlength="120" autocomplete="off" style="flex:1;"><button class="pbtn pbtn-p pbtn-sm" onclick="pSubmitChat()" style="flex-shrink:0;">Kirim</button></div>
+      </div>
+    </div>
+    <div id="p-voicea" style="display:none;">
+      <div class="pcard" style="border-color:rgba(255,59,87,.3);background:rgba(255,59,87,.04);text-align:center;">
+        <div class="pc-lbl" style="color:var(--pr);">🎙️ Giliranmu Bicara!</div>
+        <div style="font-size:12px;color:#62628a;margin-bottom:14px;">Tahan tombol mic untuk bicara</div>
+        <button id="pttBtn" style="width:72px;height:72px;border-radius:50%;border:2px solid var(--pbd);cursor:pointer;background:var(--ps2);display:inline-flex;align-items:center;justify-content:center;font-size:32px;transition:all .15s;">🎙️</button>
+        <div style="font-size:11px;color:#62628a;margin-top:10px;">Tahan = bicara, lepas = stop</div>
+      </div>
+    </div>
+    <div class="pbtn-grp mt12"><button class="pbtn pbtn-g" onclick="pSkip()">⏭️ Selesai / Skip</button></div>
+  </div>
+  <div id="p-waita" style="display:none;"><div class="pwait" style="margin-top:8px;">Menunggu <strong id="p-wfnm"></strong> bicara<span class="dots"><span>.</span><span>.</span><span>.</span></span></div></div>
+  <div class="pcard mt16" id="p-tclog" style="display:none;"><div class="pc-lbl">💬 Petunjuk yang sudah disampaikan</div><div id="p-tcmsg" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;max-height:220px;overflow-y:auto;"></div></div>
+  <div class="pcard mt12" style="border-color:rgba(0,229,176,.15);background:rgba(0,229,176,.03);">
+    <div class="pc-lbl">Peranmu</div>
+    <div style="display:flex;align-items:center;gap:12px;"><div class="pav" id="p-rrem" style="width:40px;height:40px;font-size:16px;"></div><div><div id="p-rrbdg" style="font-size:14px;font-weight:600;color:#eeeef5;"></div><div id="p-rrwd" style="font-size:12px;color:#62628a;margin-top:2px;"></div></div></div>
+  </div>
+  <div id="p-hvbtn" class="pbtn-grp mt16" style="display:none;"><button class="pbtn pbtn-d" onclick="pHostVote()">⚡ Mulai Voting Sekarang</button></div>
+</div></div>
+<div id="ps-vote" class="psc"><div class="pw">
+  <div style="margin-bottom:16px;text-align:center;"><div class="logo" style="font-size:34px;color:var(--pr);-webkit-text-fill-color:var(--pr);">VOTING!</div></div>
+  <div class="pcard">
+    <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--pa);font-weight:700;margin-bottom:8px;" id="p-cvwho"></div>
+    <div style="font-size:13px;color:#62628a;margin-bottom:12px;" id="p-vstxt"></div>
+    <div id="p-mvcard" style="display:none;"><div class="pvlst" id="p-vlst"></div></div>
+    <div id="p-vcbtnw" style="display:none;margin-top:12px;"><button class="pbtn pbtn-d" id="p-vcbtn" onclick="pSubmitVote()" disabled>✓ Konfirmasi Vote</button></div>
+    <div id="p-vwait" style="display:none;"><div class="pwait">Menunggu giliran<span class="dots"><span>.</span><span>.</span><span>.</span></span></div></div>
+    <div id="p-vdone" style="display:none;"><div class="pwait">✅ Sudah vote! Nunggu yang lain<span class="dots"><span>.</span><span>.</span><span>.</span></span></div></div>
+  </div>
+  <div style="text-align:center;font-size:13px;color:#62628a;margin-top:16px;">Voting ke <span id="p-vidx">1</span> dari <span id="p-vtot">0</span></div>
+</div></div>
+<div id="ps-guess" class="psc"><div class="pw">
+  <div style="text-align:center;margin-bottom:24px;"><span class="spl">🕵️</span><div class="logo" style="font-size:38px;color:var(--pr);-webkit-text-fill-color:var(--pr);">TERTANGKAP!</div><div style="color:#62628a;font-size:13px;margin-top:12px;" id="p-cnm"></div></div>
+  <div style="background:rgba(255,59,87,.07);border:1px solid rgba(255,59,87,.25);border-radius:14px;padding:18px;margin-bottom:16px;text-align:center;"><div style="font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:var(--pr);font-weight:700;margin-bottom:8px;">🎯 Tebak Kata — Spy Masih Bisa Menang!</div><div style="color:#62628a;font-size:13px;">Jika spy menebak kata yang benar, spy menang!</div></div>
+  <div class="pcard" id="p-ggsc"><div class="pc-lbl">Pilih kata yang menurutmu benar</div><div class="ggrid" id="p-ggrd"></div></div>
+  <div id="p-ggwt" style="display:none;"><div class="pwait">Spy sedang menebak kata<span class="dots"><span>.</span><span>.</span><span>.</span></span></div></div>
+</div></div>
+<div id="ps-result" class="psc"><div class="pw">
+  <div class="rhr" id="p-rhr"><span class="spl" id="p-remj"></span><div class="rtit" id="p-rtit"></div><div style="font-size:13px;color:#62628a;margin-top:8px;line-height:1.6;" id="p-rsub"></div></div>
+  <div class="pcard"><div class="pc-lbl">🎯 Kata Rahasia</div><div style="font-family:'Bebas Neue',cursive;font-size:36px;letter-spacing:3px;color:var(--pa);" id="p-rwd"></div><div style="color:#62628a;font-size:12px;margin-top:4px;" id="p-rcat"></div></div>
+  <div class="pcard"><div class="pc-lbl">👥 Peran Semua Pemain</div><div class="rrlst" id="p-rrls"></div></div>
+  <div class="pcard"><div class="pc-lbl">🗳️ Hasil Voting</div><div class="rrlst" id="p-rvts"></div></div>
+  <div class="pbtn-grp mt16"><button class="pbtn pbtn-p" id="p-pagbtn" onclick="pPlayAgain()" style="display:none;">🔄 Main Lagi (Kata Baru)</button><button class="pbtn pbtn-g" onclick="pLeave()">🚪 Keluar Room</button></div>
+</div></div>
+<div class="spkl" id="p-spkl"></div>
+</div><!-- #pv -->
+<script>
+// ════ HUB ════
+let socket = null;
+function initSocket(){
+  if(socket) return;
+  socket = io();
+  setupWordleEvents();
+  setupSkribblEvents();
+}
+function openGame(g){
+  document.getElementById('hub').classList.add('hidden');
+  document.getElementById('hback').classList.add('vis');
+  const map={w:'wv',s:'sv',p:'pv'};
+  document.getElementById(map[g]).classList.add('active');
+  if(g!=='p') initSocket();
+}
+function backToHub(){
+  document.querySelectorAll('.gview').forEach(v=>v.classList.remove('active'));
+  document.getElementById('hub').classList.remove('hidden');
+  document.getElementById('hback').classList.remove('vis');
+}
+
+// ════ WORDLE ════
+const WORDS_ID=['AMBIL','ANGSA','ANGIN','ANJUR','ANTAM','APUNG','AROMA','ARUNG','ASPAL','ATLAS','AYUNAN','BABAK','BADAK','BAHAN','BAKAR','BAKUL','BALAM','BAMBU','BANDA','BANTU','BASAH','BATAS','BATIK','BEBAS','BELOK','BENAH','BENAR','BENIH','BERAS','BEREK','BERUK','BILIK','BOHON','BOLOS','BOROS','BUBUK','BUDAK','BULAT','BUMBU','BUNGA','BURUH','BUSUR','BUTIR','CAHYA','CAKAR','CAPAI','CELAH','CEPAT','CERAH','CERIA','CINCU','CORAK','CUKAI','DALAM','DAMAI','DAPUR','DAYAK','DEBAT','DEKAT','DELTA','DENAH','DENIK','DEPAN','DERAS','DESAK','DEWAS','DIDIK','DINGIN','DOLAN','DOMBA','DOYOK','DUBUR','DUKUN','DUNGAK','DUNIA','DURJA','EMBER','EMPUK','ERANG','FAJAR','FAKIR','FIGUR','FUKUS','GALAK','GALON','GARAM','GARUK','GELAR','GEMPA','GERAK','GETAH','GIGIT','GODAM','GOLEM','GOMBAL','GOSOK','GULING','GUSAR','HABIS','HADAP','HADIR','HALAL','HARAP','HEBAT','HEMAT','HIKAM','HIJAU','HITAM','HUMBA','HUNUS','IKLAN','IMBAL','IMPAS','INJAK','INTIP','INSAN','IRAMA','IRONI','IRING','ISYAR','IZAAN','JAGAL','JAJAN','JAKIM','JALIN','JAMUR','JARUM','JATUH','JAWAB','JENUH','JINAK','JIRAT','JIWA','JUJUR','KACAU','KADAR','KAGUM','KAPUR','KARIR','KARTU','KARYA','KASIH','KAWIN','KAYAK','KECAP','KELAM','KENAN','KEREN','KERAS','KIRIM','KISAH','KODEK','KOLAM','KOPER','KOTOR','KREMI','KUBAH','KUKUH','KULAK','KULIT','KUMUR','KUPAS','LAHAR','LAHIR','LAKON','LALAT','LAMPU','LAPUK','LARIS','LARUT','LASAK','LAYAK','LEBAR','LEMAK','LEMAH','LEPAS','LEWAT','LIBAS','LIMAS','LIPAT','LOGAM','LOKAL','LUGAS','LUPUT','MABUK','MACAM','MAHAL','MAKNA','MANIK','MANTU','MAPAN','MARKA','MASAK','MASIH','MASUK','MAYOR','MERAH','MITOS','MOGOK','MOGUL','MULAI','MULUS','MURNI','MUSIM','NALURI','NILAI','NISTA','NORMA','NUBAR','OBYEK','OMSET','OPINI','ORGAN','ORANG','PADAT','PAHAM','PANAS','PATUH','PECAH','PEKAT','PEJAL','PEJAM','PELET','PELIK','PELUH','PENUH','PERIH','PESAT','PISAU','POLOS','POLAH','POPUP','PREMI','PUBAK','PUCAT','PUKUL','PULAU','RAMAI','RAMAH','RAMAL','RAWAN','RESAP','RIBET','RINCI','RISAU','RISIK','ROBOT','ROJAK','RUTIN','SABDA','SAGEL','SAKIT','SALAK','SALIN','SANAI','SARAF','SARUK','SAWAH','SEBAB','SEMAK','SEMAI','SEMUA','SERAK','SETAN','SIAGA','SIGAP','SINGKAT','SIRAM','SOBAT','SORAN','SUBUR','SUDUT','SURAM','SURUT','SUSUT','TABUR','TANAM','TANDA','TANYA','TARIK','TEBAL','TEGAK','TEGUH','TEKAN','TEPAT','TERIK','TETES','TIADA','TIGON','TIRAM','TOPAN','USAHA','UTAMA','WAJIB','WALET','WARGA','WARMA','WARSA','WATAK','WISMA','YAKIN','ZAKAT'];
+const WORDS_EN=['ABOUT','ABOVE','ABUSE','AGENT','AGING','AGONY','AGREE','AHEAD','ALIEN','ALIKE','ALIGN','ALIVE','ALLAY','ALONG','ALTER','ANGEL','ANGER','ANGLE','ANNEX','APART','APPLE','APPLY','ARISE','ARGUE','ARMOR','AROSE','ARRAY','ARROW','AWFUL','BASIC','BASIS','BATCH','BEACH','BEARD','BEAST','BEGIN','BEING','BELOW','BENCH','BIBLE','BLACK','BLADE','BLAME','BLAND','BLANK','BLAST','BLAZE','BLEED','BLEND','BLESS','BLIND','BLOCK','BLOOD','BLOWN','BOARD','BONUS','BOTCH','BOUND','BRAIN','BRAND','BRAVE','BREAK','BREED','BRICK','BRIEF','BRING','BROAD','BROKE','BROWN','BRUSH','BUILD','BUILT','BURST','CABIN','CANDY','CARRY','CATCH','CAUSE','CHART','CHAOS','CHASE','CHEAP','CHECK','CHILD','CIVIC','CLAIM','CLASH','CLASS','CLEAN','CLEAR','CLERK','CLICK','CLIMB','CLOCK','CLOSE','CLOUD','COACH','COAST','COLOR','CORAL','COULD','COUNT','COURT','COVER','CRAFT','CRASH','CRISP','CROSS','CROWN','CRUEL','CRUSH','CURVE','CYCLE','DAILY','DANCE','DEATH','DEBUT','DECAY','DELAY','DENSE','DEPTH','DERBY','DIRTY','DOING','DOUBT','DRAFT','DRAIN','DRAMA','DRAWN','DREAM','DRIED','DRIFT','DRINK','DRIVE','DROVE','DYING','EARLY','EARTH','ENJOY','ENTER','EQUAL','ERROR','EVERY','EXACT','EXIST','EXTRA','FABLE','FACET','FAINT','FAITH','FALSE','FANCY','FATAL','FEAST','FENCE','FETCH','FEVER','FIELD','FIFTH','FIGHT','FINAL','FIRST','FIXED','FLAME','FLARE','FLASH','FLESH','FLOAT','FLOOR','FLUID','FOCUS','FORCE','FORGE','FORTH','FOUND','FRAME','FRAUD','FRESH','FRONT','FROST','FRUIT','FULLY','GHOST','GIANT','GIVEN','GLASS','GLOBE','GLOOM','GLORY','GLOVE','GOING','GRACE','GRADE','GRAND','GRANT','GRASS','GRAVE','GREAT','GREEN','GRIEF','GROUP','GROWN','GUARD','GUESS','GUIDE','GUILD','HABIT','HAPPY','HARSH','HEART','HEAVY','HENCE','HIRED','HORSE','HOTEL','HOUSE','HUMAN','HURRY','IDEAL','IMAGE','IMPLY','INDEX','INNER','ISSUE','JUDGE','JUICE','JUICY','KNOWN','LARGE','LASER','LATER','LAUGH','LAYER','LEADER','LEARN','LEAST','LEAVE','LIGHT','LIMIT','LINED','LIVER','LOCAL','LOGIC','LOOSE','LOWER','LOYAL','LUCKY','MAGIC','MAJOR','MARCH','MATCH','MEDIA','MERCY','MERIT','METAL','MIGHT','MINOR','MINUS','MIXED','MODEL','MONEY','MORAL','MOUNT','MOUSE','MOVED','MUSIC','NAIVE','NIGHT','NOBLE','NORTH','NOTED','NOVEL','NURSE','OCCUR','OFFER','ORDER','OTHER','OUTER','OWNED','OZONE','PAINT','PANEL','PANIC','PAPER','PARTY','PATCH','PAUSE','PEACE','PENNY','PHOTO','PIANO','PILOT','PINCH','PLACE','PLAIN','PLANE','PLANT','PLATE','POINT','POLAR','POWER','PRESS','PRICE','PRIDE','PRIME','PRINT','PRIZE','PROBE','PROOF','PROUD','PROVE','PULSE','PUNCH','PUPIL','QUEEN','QUERY','QUEUE','QUICK','QUIET','QUITE','QUOTA','QUOTE','RACE','RADAR','RADIO','RANGE','RAPID','RATIO','REACH','READY','REALM','REBEL','REFER','REIGN','RELAX','RENEW','REPAY','REPLY','RESET','RIGHT','RIGID','RIVAL','RIVER','ROUGH','ROUND','ROYAL','RULER','SCALE','SCARE','SCENE','SCOPE','SCORE','SENSE','SERVE','SEVEN','SHADE','SHAKE','SHALL','SHAME','SHAPE','SHARE','SHARK','SHARP','SHELF','SHELL','SHIFT','SHINE','SHIRT','SHOCK','SHOOT','SHORT','SHOUT','SIGHT','SINCE','SIXTH','SKILL','SKULL','SLEEP','SLICE','SLIDE','SLOPE','SMART','SMILE','SMOKE','SOUTH','SPACE','SPARE','SPARK','SPEAK','SPEND','SPIKE','SPIRIT','SPLIT','SPOKE','SPORT','SQUAD','STAIN','STAKE','STALE','STAND','STARK','START','STATE','STEAL','STEAM','STEEL','STEEP','STERN','STICK','STILL','STOCK','STONE','STORM','STORY','STUCK','STUDY','STYLE','SUITE','SUPER','SWEET','SWIFT','SWORD','TABLE','TAKEN','TASTE','TEACH','TEARS','THEIR','THEME','THERE','THOSE','THREE','THROW','TIGER','TIGHT','TITLE','TODAY','TOTAL','TOUCH','TOUGH','TOWER','TRADE','TRAIL','TRAIN','TRAIT','TREND','TRIAL','TRICK','TROOP','TRULY','TRUST','TRUTH','TWICE','TWIST','UNDER','UNTIL','UPPER','UPSET','URBAN','USING','USUAL','VALID','VALUE','VERSE','VOICE','VISIT','VITAL','VOCAL','VOICE','VOTER','WASTE','WATCH','WATER','WEIGH','WEIRD','WHILE','WHOLE','WHOSE','WIDEN','WOMAN','WORLD','WORSE','WORST','WORTH','WOULD','WRIST','WRITE','WRONG','YIELD','YOUNG'];
+
+let wSLang='id',wBLang='id',wRLang='id';
+let wBRoom=null,wBMyId=null,wBGame=null;
+let wRRoom=null,wRMyId=null,wRGame=null;
+
+function wRandWord(lang){const w=lang==='id'?WORDS_ID:WORDS_EN;return w[Math.floor(Math.random()*w.length)];}
+function wSS(s){document.querySelectorAll('#wv .ws').forEach(e=>e.classList.remove('on'));document.getElementById('ws-'+s).classList.add('on');}
+function wSetSLang(l){wSLang=l;document.getElementById('wsl-id').classList.toggle('on',l==='id');document.getElementById('wsl-en').classList.toggle('on',l==='en');wInitSingle();}
+function wSetBLang(l){wBLang=l;document.getElementById('wbl-id').classList.toggle('on',l==='id');document.getElementById('wbl-en').classList.toggle('on',l==='en');}
+function wSetRLang(l){wRLang=l;document.getElementById('wrl-id').classList.toggle('on',l==='id');document.getElementById('wrl-en').classList.toggle('on',l==='en');}
+
+function wInitSingle(){
+  document.getElementById('w-sag').style.display='none';
+  const word=wRandWord(wSLang);
+  wBGame=null;
+  const g=wCreateGame(word,6,document.getElementById('w-sb'),document.getElementById('w-sk'),{
+    onWin:()=>{wToast('🎉 Berhasil!');document.getElementById('w-sag').style.display='block';},
+    onLose:()=>{wToast('Kata: '+word);document.getElementById('w-sag').style.display='block';}
+  });
+  wBGame=g;
+}
+
+function wCreateGame(word,maxRows,gridEl,kbEl,cbs){
+  word=word.toUpperCase();
+  const rows=[];let curRow=0;let curCol=0;let done=false;
+  gridEl.innerHTML='';
+  const grid=document.createElement('div');grid.className='wgrid';
+  for(let r=0;r<maxRows;r++){
+    const row=document.createElement('div');row.className='wgr';
+    const cells=[];
+    for(let c=0;c<5;c++){const t=document.createElement('div');t.className='wt';row.appendChild(t);cells.push(t);}
+    grid.appendChild(row);rows.push(cells);
+  }
+  gridEl.appendChild(grid);
+  const KB=[['Q','W','E','R','T','Y','U','I','O','P'],['A','S','D','F','G','H','J','K','L'],['ENTER','Z','X','C','V','B','N','M','⌫']];
+  const kmap={};
+  kbEl.innerHTML='';
+  KB.forEach(r=>{const row=document.createElement('div');row.className='wkr';r.forEach(k=>{const btn=document.createElement('button');btn.className='wk'+(k.length>1?' wd':'');btn.textContent=k;btn.onclick=()=>inp(k);row.appendChild(btn);if(k.length===1)kmap[k]=btn;});kbEl.appendChild(row);});
+  function inp(k){
+    if(done)return;
+    if(k==='⌫'||k==='Backspace'){if(curCol>0){curCol--;rows[curRow][curCol].textContent='';rows[curRow][curCol].classList.remove('fil');}}
+    else if(k==='ENTER'||k==='Enter'){
+      if(curCol<5){shake();return;}
+      const guess=rows[curRow].map(t=>t.textContent).join('');
+      const all=(wSLang==='id'?WORDS_ID:WORDS_EN).concat(wSLang==='id'?WORDS_EN:WORDS_ID);
+      const res=wEval(guess,word);
+      let delay=0;
+      res.forEach((r,i)=>{
+        setTimeout(()=>{rows[curRow][i].classList.add(r);},delay);
+        delay+=80;
+      });
+      setTimeout(()=>{
+        res.forEach((r,i)=>{const l=guess[i];if(kmap[l]){if(r==='cor'||(r==='pre'&&kmap[l].className.indexOf('cor')<0)||(r==='abs'&&!kmap[l].className.match(/cor|pre/)))kmap[l].className='wk '+r;}});
+        if(guess===word){done=true;cbs.onWin&&cbs.onWin();}
+        else if(curRow>=maxRows-1){done=true;cbs.onLose&&cbs.onLose();}
+        else{curRow++;curCol=0;}
+      },delay+100);
+    }
+    else if(/^[A-Za-z]$/.test(k)&&curCol<5){
+      rows[curRow][curCol].textContent=k.toUpperCase();rows[curRow][curCol].classList.add('fil');curCol++;
+    }
+  }
+  function shake(){const r=rows[curRow][0].parentElement;r.classList.add('wshk');setTimeout(()=>r.classList.remove('wshk'),400);}
+  document.addEventListener('keydown',function kh(e){if(!document.getElementById('wv').classList.contains('active'))return;inp(e.key);});
+  return {word,setResult:(r,i,cls)=>{rows[r][i].classList.add(cls);},getRow:(r)=>rows[r].map(t=>t.textContent).join(''),curRow:()=>curRow};
+}
+
+function wEval(guess,word){
+  const res=Array(5).fill('abs');const used=Array(5).fill(false);const wArr=word.split('');
+  for(let i=0;i<5;i++){if(guess[i]===wArr[i]){res[i]='cor';used[i]=true;}}
+  for(let i=0;i<5;i++){if(res[i]==='cor')continue;for(let j=0;j<5;j++){if(!used[j]&&guess[i]===wArr[j]&&res[j]!=='cor'){res[i]='pre';used[j]=true;break;}}}
+  return res;
+}
+
+function wToast(msg,ms=2200){const t=document.getElementById('wtoast');t.textContent=msg;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',ms);}
+
+// BATTLE
+function wBCreate(){
+  const nm=document.getElementById('wb-nm').value.trim();
+  if(!nm){document.getElementById('wb-merr').textContent='Masukkan nama dulu!';document.getElementById('wb-merr').style.display='block';return;}
+  initSocket();
+  socket.emit('battle:create',{name:nm,lang:wBLang});
+}
+function wBJoin(){
+  const nm=document.getElementById('wb-nm').value.trim();
+  const code=document.getElementById('wb-jcd').value.trim().toUpperCase();
+  if(!nm||!code){document.getElementById('wb-merr').textContent='Isi nama dan kode!';document.getElementById('wb-merr').style.display='block';return;}
+  initSocket();
+  socket.emit('battle:join',{name:nm,code,lang:wBLang});
+}
+function wBSetWord(){
+  const w=document.getElementById('wb-winp').value.trim().toUpperCase();
+  const words=(wBLang==='id'?WORDS_ID:WORDS_EN).concat(wBLang==='id'?WORDS_EN:WORDS_ID);
+  if(w.length!==5){document.getElementById('wb-werr').textContent='Harus 5 huruf!';document.getElementById('wb-werr').style.display='block';return;}
+  document.getElementById('wb-werr').style.display='none';
+  socket.emit('battle:setword',{room:wBRoom,word:w});
+  document.getElementById('wb-wform').style.display='none';
+  document.getElementById('wb-wlkd').style.display='block';
+}
+function wBLeave(){socket&&socket.emit('battle:leave',{room:wBRoom});wBRoom=null;wSS('home');}
+function wBRestart(){socket&&socket.emit('battle:restart',{room:wBRoom});}
+
+// RACE
+function wRCreate(){
+  const nm=document.getElementById('wr-nm').value.trim();
+  if(!nm){document.getElementById('wr-merr').textContent='Masukkan nama dulu!';document.getElementById('wr-merr').style.display='block';return;}
+  initSocket();
+  socket.emit('race:create',{name:nm,lang:wRLang});
+}
+function wRJoin(){
+  const nm=document.getElementById('wr-nm').value.trim();
+  const code=document.getElementById('wr-jcd').value.trim().toUpperCase();
+  if(!nm||!code){document.getElementById('wr-merr').textContent='Isi nama dan kode!';document.getElementById('wr-merr').style.display='block';return;}
+  initSocket();
+  socket.emit('race:join',{name:nm,code,lang:wRLang});
+}
+function wRLeave(){socket&&socket.emit('race:leave',{room:wRRoom});wRRoom=null;wSS('home');}
+function wRRestart(){socket&&socket.emit('race:restart',{room:wRRoom});}
+
+function wRenderSB(players,myId,el,myClass='me'){
+  el.innerHTML='';
+  const sorted=[...players].sort((a,b)=>a.rank-b.rank||a.guesses-b.guesses);
+  sorted.forEach((p,i)=>{
+    const row=document.createElement('div');
+    row.className='wpr'+(p.id===myId?' '+myClass:'');
+    const medal=['🥇','🥈','🥉'][i]||'';
+    row.innerHTML=`<span style="font-size:16px;">${medal||'#'+(i+1)}</span><span class="wpn">${p.name}</span><span class="wps">${p.solved?'✓ '+p.guesses+' tebakan':p.guesses>0?p.guesses+' percobaan':'—'}</span>`;
+    el.appendChild(row);
+  });
+}
+
+function setupWordleEvents(){
+  socket.on('battle:created',(d)=>{
+    wBRoom=d.room;wBMyId=socket.id;
+    document.getElementById('wb-rbdg').textContent=d.room;
+    document.getElementById('wb-rl').textContent='Player 1 (Host)';
+    document.getElementById('wb-wait-op').style.display='block';
+    document.getElementById('wb-wform').style.display='none';
+    document.getElementById('wb-wlkd').style.display='none';
+    document.getElementById('wb-merr').style.display='none';
+    wSS('btl-wd');
+  });
+  socket.on('battle:joined',(d)=>{
+    wBRoom=d.room;wBMyId=socket.id;
+    document.getElementById('wb-rbdg').textContent=d.room;
+    document.getElementById('wb-rl').textContent='Player 2';
+    document.getElementById('wb-wait-op').style.display='none';
+    document.getElementById('wb-wform').style.display='block';
+    document.getElementById('wb-wlkd').style.display='none';
+    document.getElementById('wb-merr').style.display='none';
+    wSS('btl-wd');
+  });
+  socket.on('battle:opjoined',(d)=>{
+    document.getElementById('wb-wait-op').style.display='none';
+    document.getElementById('wb-wform').style.display='block';
+    wToast('Lawan bergabung! Pilih kata kamu.');
+  });
+  socket.on('battle:start',(d)=>{
+    const {word,opName,room}=d;
+    document.getElementById('wb-grbdg').textContent=room;
+    document.getElementById('wb-vslbl').textContent='Lawan: '+opName;
+    document.getElementById('wb-wnbr').style.display='none';
+    document.getElementById('wb-endb').style.display='none';
+    wBGame=wCreateGame(word,6,document.getElementById('w-bb'),document.getElementById('w-bk'),{
+      onWin:()=>{socket.emit('battle:win',{room:wBRoom,guesses:wBGame.curRow()+1});},
+      onLose:()=>{socket.emit('battle:lose',{room:wBRoom});}
+    });
+    wSS('btl-gm');
+  });
+  socket.on('battle:result',(d)=>{
+    const box=document.getElementById('wb-wnbr');
+    box.style.display='block';box.innerHTML='';
+    const won=d.winner===wBMyId;
+    const el=document.createElement('div');
+    el.className='wbn '+(won?'win':'los');
+    el.innerHTML=won?'🎉 Kamu Menang!':'😢 Lawan Menang!';
+    box.appendChild(el);
+    document.getElementById('wb-endb').style.display='flex';
+  });
+  socket.on('battle:error',(d)=>{document.getElementById('wb-merr').textContent=d.msg;document.getElementById('wb-merr').style.display='block';});
+
+  socket.on('race:created',(d)=>{
+    wRRoom=d.room;wRMyId=socket.id;
+    document.getElementById('wr-rbdg').textContent=d.room;
+    document.getElementById('wr-merr').style.display='none';
+    wSS('race-gm');
+  });
+  socket.on('race:joined',(d)=>{
+    wRRoom=d.room;wRMyId=socket.id;
+    document.getElementById('wr-rbdg').textContent=d.room;
+    document.getElementById('wr-merr').style.display='none';
+    wSS('race-gm');
+  });
+  socket.on('race:players',(d)=>{
+    document.getElementById('wr-pcnt').textContent='PEMAIN ('+d.players.length+') — Tunggu host mulai...';
+    wRenderSB(d.players,wRMyId,document.getElementById('wr-sb'));
+  });
+  socket.on('race:start',(d)=>{
+    document.getElementById('wr-wnbr').style.display='none';
+    document.getElementById('wr-endb').style.display='none';
+    document.getElementById('wr-pcnt').textContent='RACE SEDANG BERLANGSUNG!';
+    wRGame=wCreateGame(d.word,6,document.getElementById('w-rb'),document.getElementById('w-rk'),{
+      onWin:()=>{socket.emit('race:solved',{room:wRRoom,guesses:wRGame.curRow()+1});},
+      onLose:()=>{socket.emit('race:failed',{room:wRRoom});}
+    });
+  });
+  socket.on('race:update',(d)=>{wRenderSB(d.players,wRMyId,document.getElementById('wr-sb'));});
+  socket.on('race:end',(d)=>{
+    const box=document.getElementById('wr-wnbr');
+    box.style.display='block';box.innerHTML='';
+    const winner=d.players.find(p=>p.rank===1);
+    const el=document.createElement('div');
+    el.className='wbn '+(winner&&winner.id===wRMyId?'win':'los');
+    el.innerHTML=winner?(winner.id===wRMyId?'🏆 Kamu Juara!':'🏆 '+winner.name+' Menang!'):'Game Selesai!';
+    box.appendChild(el);
+    wRenderSB(d.players,wRMyId,document.getElementById('wr-sb'));
+    document.getElementById('wr-endb').style.display='flex';
+  });
+  socket.on('race:error',(d)=>{document.getElementById('wr-merr').textContent=d.msg;document.getElementById('wr-merr').style.display='block';});
+}
+
+// ════ SKRIBBL ════
+const SK_WORDS={
+  Hewan:['Kucing','Anjing','Gajah','Jerapah','Harimau','Singa','Beruang','Kuda','Sapi','Kambing','Ayam','Bebek','Kelinci','Tikus','Ular','Buaya','Kura-Kura','Lumba-Lumba','Pinguin','Kanguru','Koala','Panda','Gorila','Cheetah','Zebra','Badak','Kuda Nil','Rusa','Landak','Berang-Berang'],
+  Makanan:['Pizza','Sushi','Burger','Rendang','Nasi Goreng','Mie Ayam','Bakso','Sate','Gado-Gado','Pempek','Gudeg','Rawon','Soto','Opor','Ketoprak','Pecel','Rujak','Cilok','Siomay','Batagor','Donat','Kue Lapis','Martabak','Roti Bakar','Es Krim','Keripik','Agar-Agar'],
+  Kendaraan:['Mobil','Motor','Sepeda','Bus','Truk','Kereta','Pesawat','Kapal','Helikopter','Becak','Bajaj','Andong','Skuter','Traktor','Forklift','Tank','Ambulans','Pemadam Kebakaran','Taksi','Angkot'],
+  Benda:['Kursi','Meja','Lemari','Kulkas','Televisi','Komputer','Buku','Pensil','Penggaris','Gunting','Lem','Setrika','Sapu','Ember','Kunci','Payung','Kacamata','Jam','Cermin','Lampu','Bantal','Selimut'],
+  Alam:['Gunung','Pantai','Hutan','Danau','Sungai','Sawah','Padang Pasir','Kutub','Gua','Air Terjun','Bukit','Lembah','Rawa','Teluk','Selat','Tebing','Volcano','Terumbu Karang','Laguna'],
+  Profesi:['Dokter','Guru','Polisi','Tentara','Pilot','Koki','Petani','Nelayan','Arsitek','Insinyur','Hakim','Jaksa','Pengacara','Pelukis','Penyanyi','Aktor','Fotografer','Programmer','Astronot'],
+  Olahraga:['Sepak Bola','Basket','Voli','Renang','Badminton','Tenis','Golf','Tinju','Berenang','Atletik','Panahan','Berkuda','Panjat Tebing','Senam','Taekwondo','Silat','Lompat Jauh','Lempar Lembing'],
+  Bangunan:['Rumah','Apartemen','Kantor','Sekolah','Rumah Sakit','Masjid','Gereja','Pura','Vihara','Pasar','Mall','Stadion','Menara','Jembatan','Terowongan','Bendungan','Istana','Penjara']
+};
+const SK_COLORS=['#000000','#ffffff','#FF0000','#FF6B6B','#FF8C00','#FFD700','#FFE14D','#4ECDC4','#00CC66','#22C55E','#0080FF','#6366F1','#C084FC','#FF69B4','#8B4513','#9B8B7A'];
+
+let skRoom=null,skMyId=null,skIsHost=false,skIsDrawing=false;
+let skCanv=null,skCtx=null,skDrawing=false,skLastX=0,skLastY=0;
+let skColor='#000000',skSize=4,skErasing=false;
+let skTimer=null,skGuessed=false;
+
+function skShowSS(id){
+  document.querySelectorAll('#sv .ss').forEach(e=>{e.classList.remove('on');e.style.display='none';});
+  document.getElementById('sgame').classList.remove('on');
+  if(id==='game'){document.getElementById('sgame').classList.add('on');}
+  else{document.getElementById(id).style.display='flex';document.getElementById(id).classList.add('on');}
+}
+function skCreate(){
+  const nm=document.getElementById('sk-cnm').value.trim();
+  const cat=document.getElementById('sk-ccat').value;
+  const rds=parseInt(document.getElementById('sk-crd').value);
+  if(!nm){document.getElementById('sk-cerr').textContent='Masukkan nama dulu!';return;}
+  initSocket();
+  socket.emit('skribbl:create',{name:nm,category:cat,rounds:rds});
+}
+function skJoin(){
+  const nm=document.getElementById('sk-jnm').value.trim();
+  const code=document.getElementById('sk-jcd').value.trim().toUpperCase();
+  if(!nm||!code){document.getElementById('sk-jerr').textContent='Isi semua field!';return;}
+  initSocket();
+  socket.emit('skribbl:join',{name:nm,code});
+}
+function skStart(){socket.emit('skribbl:start',{room:skRoom});}
+function skLeave(){
+  if(skTimer)clearInterval(skTimer);
+  socket&&socket.emit('skribbl:leave',{room:skRoom});
+  skRoom=null;
+  skShowSS('ss-home');
+  document.getElementById('sk-cerr').textContent='';
+  document.getElementById('sk-jerr').textContent='';
+}
+function skRestart(){socket.emit('skribbl:restart',{room:skRoom});}
+function skGuess(){
+  const inp=document.getElementById('sk-cin');
+  const msg=inp.value.trim();
+  if(!msg)return;
+  socket.emit('skribbl:guess',{room:skRoom,guess:msg});
+  inp.value='';
+}
+function skInitCanvas(){
+  skCanv=document.getElementById('scanv');
+  skCtx=skCanv.getContext('2d');
+  skCanv.width=700;skCanv.height=480;
+  skCtx.fillStyle='#fff';skCtx.fillRect(0,0,700,480);
+  skCanv.addEventListener('mousedown',skMD);
+  skCanv.addEventListener('mousemove',skMM);
+  skCanv.addEventListener('mouseup',skMU);
+  skCanv.addEventListener('touchstart',skTD,{passive:false});
+  skCanv.addEventListener('touchmove',skTM,{passive:false});
+  skCanv.addEventListener('touchend',skMU);
+  const clr=document.getElementById('sk-clr');clr.innerHTML='';
+  SK_COLORS.forEach(c=>{
+    const sw=document.createElement('div');sw.className='ssw'+(c===skColor?' on':'');
+    sw.style.background=c;if(c==='#ffffff')sw.style.border='2px solid #ccc';
+    sw.onclick=()=>skSetColor(c);clr.appendChild(sw);
+  });
+}
+function skPos(e){
+  const r=skCanv.getBoundingClientRect();
+  const sx=skCanv.width/r.width,sy=skCanv.height/r.height;
+  return{x:(e.clientX-r.left)*sx,y:(e.clientY-r.top)*sy};
+}
+function skMD(e){if(!skIsDrawing)return;skDrawing=true;const p=skPos(e);skLastX=p.x;skLastY=p.y;skDot(p.x,p.y);}
+function skMM(e){if(!skIsDrawing||!skDrawing)return;const p=skPos(e);skDrawSeg(skLastX,skLastY,p.x,p.y,true);skLastX=p.x;skLastY=p.y;}
+function skMU(){skDrawing=false;}
+function skTD(e){e.preventDefault();skMD(e.touches[0]);}
+function skTM(e){e.preventDefault();skMM(e.touches[0]);}
+function skDot(x,y,emit=true){
+  if(!skCtx)return;
+  skCtx.beginPath();skCtx.arc(x,y,(skErasing?skSize*2:skSize)/2,0,Math.PI*2);
+  skCtx.fillStyle=skErasing?'#fff':skColor;skCtx.fill();
+  if(emit)socket.emit('skribbl:draw',{room:skRoom,type:'dot',x,y,color:skErasing?'#fff':skColor,size:skErasing?skSize*2:skSize});
+}
+function skDrawSeg(x1,y1,x2,y2,emit=true){
+  if(!skCtx)return;
+  skCtx.beginPath();skCtx.moveTo(x1,y1);skCtx.lineTo(x2,y2);
+  skCtx.strokeStyle=skErasing?'#fff':skColor;skCtx.lineWidth=skErasing?skSize*2:skSize;
+  skCtx.lineCap='round';skCtx.lineJoin='round';skCtx.stroke();
+  if(emit)socket.emit('skribbl:draw',{room:skRoom,type:'seg',x1,y1,x2,y2,color:skErasing?'#fff':skColor,size:skErasing?skSize*2:skSize});
+}
+function skSetColor(c){skColor=c;skErasing=false;document.getElementById('sk-erb').classList.remove('on');document.querySelectorAll('.ssw').forEach(s=>{s.classList.toggle('on',s.style.background===c||s.style.backgroundColor===c);});}
+function skSetSz(s){skSize=s;document.querySelectorAll('.sszb').forEach(b=>b.classList.toggle('on',parseInt(b.dataset.sz)===s));}
+function skErase(){skErasing=!skErasing;document.getElementById('sk-erb').classList.toggle('on',skErasing);}
+function skClear(){if(!skCtx)return;skCtx.fillStyle='#fff';skCtx.fillRect(0,0,700,480);socket.emit('skribbl:draw',{room:skRoom,type:'clear'});}
+function skShowOv(id){document.querySelectorAll('.sovl').forEach(o=>o.classList.remove('on'));if(id)document.getElementById(id).classList.add('on');}
+function skAddChat(msg,cls=''){const d=document.getElementById('sk-chat');const el=document.createElement('div');el.className='scmsg'+(cls?' '+cls:'');el.innerHTML=msg;d.appendChild(el);d.scrollTop=d.scrollHeight;}
+function skRenderPlayers(players){
+  const g=document.getElementById('sk-gplyr');g.innerHTML='';
+  players.forEach(p=>{
+    const row=document.createElement('div');
+    row.className='sprow'+(p.isDrawing?' drw':p.guessed?' gsd':'');
+    const dot=document.createElement('div');dot.className='spdt';dot.style.background=p.isDrawing?'#FB923C':p.guessed?'#6EE7B7':'#E8D5C4';
+    const nm=document.createElement('span');nm.className='spnm';nm.textContent=(p.isDrawing?'✏️ ':'')+p.name;
+    const sc=document.createElement('span');sc.className='spsc';sc.textContent=p.score;
+    row.appendChild(dot);row.appendChild(nm);row.appendChild(sc);g.appendChild(row);
+  });
+  const l=document.getElementById('sk-lplyr');if(l){l.innerHTML='';players.forEach(p=>{const tag=document.createElement('div');tag.style.cssText='background:#FFF8F0;border:2px solid #E8D5C4;border-radius:8px;padding:6px 12px;font-weight:700;font-size:14px;color:#2D2013;';tag.textContent=(p.isHost?'👑 ':'')+p.name;l.appendChild(tag);});}
+}
+function skToast(msg){const t=document.getElementById('stoast');t.textContent=msg;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',2000);}
+
+function setupSkribblEvents(){
+  socket.on('skribbl:created',(d)=>{
+    skRoom=d.room;skMyId=socket.id;skIsHost=true;
+    document.getElementById('sk-lcode').textContent=d.room;
+    document.getElementById('sk-lcat').textContent=d.category;
+    document.getElementById('sk-lrd').textContent=d.rounds+' Ronde';
+    document.getElementById('sk-lstart').style.display='block';
+    document.getElementById('sk-lwait').style.display='none';
+    document.getElementById('sk-lerr').textContent='';
+    document.getElementById('sk-cerr').textContent='';
+    skShowSS('ss-lobby');
+  });
+  socket.on('skribbl:joined',(d)=>{
+    skRoom=d.room;skMyId=socket.id;skIsHost=false;
+    document.getElementById('sk-lcode').textContent=d.room;
+    document.getElementById('sk-lcat').textContent=d.category;
+    document.getElementById('sk-lrd').textContent=d.rounds+' Ronde';
+    document.getElementById('sk-lstart').style.display='none';
+    document.getElementById('sk-lwait').style.display='block';
+    document.getElementById('sk-jerr').textContent='';
+    skShowSS('ss-lobby');
+  });
+  socket.on('skribbl:players',(d)=>{skRenderPlayers(d.players);if(d.players.length>=2&&skIsHost)document.getElementById('sk-lerr').textContent='';});
+  socket.on('skribbl:error',(d)=>{
+    if(document.getElementById('sk-cerr'))document.getElementById('sk-cerr').textContent=d.msg;
+    if(document.getElementById('sk-jerr'))document.getElementById('sk-jerr').textContent=d.msg;
+    if(document.getElementById('sk-lerr'))document.getElementById('sk-lerr').textContent=d.msg;
+  });
+  socket.on('skribbl:gamestart',(d)=>{
+    skShowSS('game');
+    skInitCanvas();
+    document.getElementById('sk-chat').innerHTML='';
+    skAddChat('Game dimulai!','sys');
+  });
+  socket.on('skribbl:turn',(d)=>{
+    skGuessed=false;skIsDrawing=(d.drawer===skMyId);
+    const isMe=skIsDrawing;
+    document.getElementById('sk-ri').textContent='Ronde '+d.round+'/'+d.totalRounds+' · '+(isMe?'Giliranmu gambar!':d.drawerName+' sedang menggambar');
+    document.getElementById('sk-tb').classList.toggle('hid',!isMe);
+    document.getElementById('sk-cin').disabled=isMe;
+    if(skCtx){skCtx.fillStyle='#fff';skCtx.fillRect(0,0,700,480);}
+    if(isMe){
+      document.getElementById('sk-wd').textContent='· · · · ·';
+      document.getElementById('sk-wd').classList.remove('iw');
+      const el=document.getElementById('sk-wchoice');el.innerHTML='';
+      d.choices.forEach(w=>{const b=document.createElement('button');b.className='swcb';b.textContent=w;b.onclick=()=>{socket.emit('skribbl:choose',{room:skRoom,word:w});skShowOv(null);document.getElementById('sk-wd').textContent=w;document.getElementById('sk-wd').classList.add('iw');};el.appendChild(b);});
+      skShowOv('sk-ov-choose');
+    } else {
+      document.getElementById('sk-wd').textContent='· · · · ·';
+      document.getElementById('sk-wd').classList.remove('iw');
+      document.getElementById('sk-wwt').textContent='⏳ '+d.drawerName;
+      document.getElementById('sk-wws').textContent='sedang memilih kata...';
+      skShowOv('sk-ov-wait');
+    }
+  });
+  socket.on('skribbl:wordchosen',(d)=>{
+    skShowOv(null);
+    if(!skIsDrawing){
+      document.getElementById('sk-wd').textContent=d.hint;
+    }
+    let t=d.duration,total=d.duration;
+    clearInterval(skTimer);
+    skTimer=setInterval(()=>{
+      t--;
+      document.getElementById('sk-tmn').textContent=t;
+      document.getElementById('sk-tmn').classList.toggle('urg',t<=10);
+      document.getElementById('sk-tmf').style.width=(t/total*100)+'%';
+      document.getElementById('sk-tmf').classList.toggle('urg',t<=10);
+      if(t<=0)clearInterval(skTimer);
+    },1000);
+    document.getElementById('sk-tmn').textContent=d.duration;
+    document.getElementById('sk-tmf').style.width='100%';
+  });
+  socket.on('skribbl:hint',(d)=>{if(!skIsDrawing)document.getElementById('sk-wd').textContent=d.hint;});
+  socket.on('skribbl:draw',(d)=>{
+    if(!skCtx)return;
+    if(d.type==='clear'){skCtx.fillStyle='#fff';skCtx.fillRect(0,0,700,480);}
+    else if(d.type==='dot'){skCtx.beginPath();skCtx.arc(d.x,d.y,d.size/2,0,Math.PI*2);skCtx.fillStyle=d.color;skCtx.fill();}
+    else if(d.type==='seg'){skCtx.beginPath();skCtx.moveTo(d.x1,d.y1);skCtx.lineTo(d.x2,d.y2);skCtx.strokeStyle=d.color;skCtx.lineWidth=d.size;skCtx.lineCap='round';skCtx.lineJoin='round';skCtx.stroke();}
+  });
+  socket.on('skribbl:guess',(d)=>{skAddChat(`<span class="smn">${d.name}:</span>${d.text}`);});
+  socket.on('skribbl:correct',(d)=>{
+    skAddChat(`🎉 ${d.name} menebak dengan benar! (+${d.points} poin)`,'ok');
+    if(d.id===skMyId){skGuessed=true;document.getElementById('sk-cin').disabled=true;skToast('🎉 Benar!');}
+    skRenderPlayers(d.players);
+  });
+  socket.on('skribbl:turnend',(d)=>{
+    clearInterval(skTimer);skShowOv('sk-ov-tend');
+    document.getElementById('sk-tw').textContent=d.word;
+    const sc=document.getElementById('sk-ts');sc.innerHTML='';
+    d.scores.forEach((p,i)=>{
+      const r=document.createElement('div');r.className='srsr';
+      r.innerHTML=`<span class="srrk">${['🥇','🥈','🥉'][i]||'#'+(i+1)}</span><span class="srnm">${p.name}</span><span class="srpt">+${p.roundScore||0}</span>`;
+      sc.appendChild(r);
+    });
+    setTimeout(()=>skShowOv(null),3000);
+  });
+  socket.on('skribbl:gameend',(d)=>{
+    clearInterval(skTimer);
+    const sorted=[...d.players].sort((a,b)=>b.score-a.score);
+    const pdm=document.getElementById('sk-pdm');pdm.innerHTML='';
+    const order=[1,0,2];const heights=[100,140,80];const emojis=['🥈','🥇','🥉'];
+    order.forEach((idx,pos)=>{
+      if(!sorted[idx])return;
+      const slot=document.createElement('div');slot.className='spdms';
+      const bar=document.createElement('div');bar.className='spdmb';bar.style.height=heights[pos]+'px';bar.style.background=['#C0C0C0','#FFD700','#CD7F32'][pos];bar.textContent=emojis[pos];
+      const nm=document.createElement('div');nm.className='spdmn';nm.textContent=sorted[idx].name+'\n'+sorted[idx].score+' pts';
+      slot.appendChild(bar);slot.appendChild(nm);pdm.appendChild(slot);
+    });
+    const fs=document.getElementById('sk-fs');fs.innerHTML='';
+    sorted.forEach((p,i)=>{
+      const r=document.createElement('div');r.className='srsr';
+      r.innerHTML=`<span class="srrk">${['🥇','🥈','🥉'][i]||'#'+(i+1)}</span><span class="srnm">${p.name}</span><span class="srpt">${p.score} pts</span>`;
+      fs.appendChild(r);
+    });
+    skShowOv('sk-ov-end');
+    document.getElementById('sk-tmn').textContent='0';
+  });
+  socket.on('skribbl:playerleft',(d)=>{skAddChat(d.name+' keluar dari room.','sys');skRenderPlayers(d.players);});
+}
+
+// ════ SPY ════
+const P_WORDS={
+  food:{civ:'Pizza',spy:'Pasta',pairs:[['Pizza','Pasta'],['Burger','Hotdog'],['Sushi','Sashimi'],['Nasi Goreng','Nasi Putih'],['Es Krim','Sorbet'],['Kopi','Teh'],['Coklat','Kakao'],['Keju','Mentega']]},
+  place:{civ:'Pantai',spy:'Kolam Renang',pairs:[['Pantai','Kolam Renang'],['Bioskop','Teater'],['Gym','Lapangan'],['Bandara','Stasiun'],['Kafe','Restoran'],['Museum','Galeri'],['Taman','Hutan'],['Masjid','Gereja']]},
+  activity:{civ:'Berenang',spy:'Menyelam',pairs:[['Berenang','Menyelam'],['Jogging','Sprint'],['Memasak','Memanggang'],['Melukis','Menggambar'],['Menyanyi','Bersenandung'],['Membaca','Meringkas'],['Berkemah','Hiking'],['Bersepeda','Berlari']]},
+  sosmed:{civ:'Instagram',spy:'TikTok',pairs:[['Instagram','TikTok'],['WhatsApp','Telegram'],['Twitter','Threads'],['YouTube','Twitch'],['Facebook','LinkedIn'],['Snapchat','BeReal'],['Discord','Slack'],['Google','Bing']]},
+  thing:{civ:'Payung',spy:'Jas Hujan',pairs:[['Payung','Jas Hujan'],['Kacamata','Lensa Kontak'],['Jam Tangan','Hp'],['Buku','Ebook'],['Pensil','Bolpoin'],['Kunci','Kartu Akses'],['Dompet','Tas'],['Cermin','Foto']]}
+};
+const P_AVCOLORS=['#00e5b0','#6d28d9','#ff6b6b','#f59e0b','#4ECDC4','#FF6B6B','#22C55E','#E879F9','#60A5FA','#FB923C'];
+const P_EMOJIS=['😎','🤠','👻','🐱','🦊','🐸','🤖','👽','🦁','🐼'];
+
+let pRoom=null,pMyId=null,pIsHost=false,pMyRole=null,pMyWord=null;
+let pGameState=null,pWS=null,pTimerInt=null;
+let pPeerConns={},pLocalStream=null,pCurrentVote=null;
+
+function pPSS(id){document.querySelectorAll('.psc').forEach(s=>s.classList.remove('on'));document.getElementById(id).classList.add('on');}
+function pNm(){return document.getElementById('p-nm').value.trim();}
+
+function pCreate(){
+  const nm=pNm();if(!nm){document.getElementById('p-nerr').textContent='Masukkan namamu!';return;}
+  pIsHost=true;
+  const code=Math.random().toString(36).slice(2,6).toUpperCase();
+  pRoom=code;pMyId=nm+'_'+Date.now();
+  const room={code,host:pMyId,players:[{id:pMyId,name:nm,avatar:pGetAvatar(nm)}],settings:{spyCount:1,mode:'chat',turnDuration:30,category:'random'},state:'lobby'};
+  pSaveRoom(room);
+  document.getElementById('p-rcd').textContent=code;
+  document.getElementById('p-hset').style.display='block';
+  document.getElementById('p-hbtns').style.display='flex';
+  document.getElementById('p-gbtns').style.display='none';
+  document.getElementById('p-startbtn').disabled=true;
+  pRenderLobby(room);pPSS('ps-lobby');
+  pConnectWS();
+}
+function pJoin(){
+  const nm=pNm();const code=document.getElementById('p-jcd').value.trim().toUpperCase();
+  if(!nm){document.getElementById('p-nerr').textContent='Masukkan namamu!';return;}
+  if(!code||code.length!==4){document.getElementById('p-jerr').textContent='Kode harus 4 huruf!';return;}
+  pIsHost=false;pRoom=code;pMyId=nm+'_'+Date.now();
+  pConnectWS(()=>{
+    pWS.send(JSON.stringify({type:'join',room:code,player:{id:pMyId,name:nm,avatar:pGetAvatar(nm)}}));
+  });
+}
+function pGetAvatar(nm){return P_EMOJIS[nm.charCodeAt(0)%P_EMOJIS.length];}
+function pGetColor(nm){return P_AVCOLORS[nm.charCodeAt(0)%P_AVCOLORS.length];}
+
+function pSaveRoom(room){/* host keeps state in memory */pGameState=room;}
+function pConnectWS(cb){
+  const proto=location.protocol==='https:'?'wss':'ws';
+  pWS=new WebSocket(proto+'://'+location.host+'/spy-ws');
+  pWS.onopen=()=>{if(cb)cb();else pWS.send(JSON.stringify({type:'hostping',room:pRoom,id:pMyId}));};
+  pWS.onmessage=(e)=>{try{pHandleWS(JSON.parse(e.data));}catch(err){}};
+  pWS.onclose=()=>{};
+}
+function pSend(obj){if(pWS&&pWS.readyState===1)pWS.send(JSON.stringify(obj));}
+function pBroadcast(obj){pSend({...obj,room:pRoom,from:pMyId});}
+
+function pHandleWS(d){
+  switch(d.type){
+    case 'joined':
+      if(pIsHost){
+        if(!pGameState)return;
+        if(!pGameState.players.find(p=>p.id===d.player.id))pGameState.players.push(d.player);
+        pRenderLobby(pGameState);
+        document.getElementById('p-startbtn').disabled=pGameState.players.length<3;
+        pBroadcast({type:'lobbystate',state:pGameState});
+      }
+      break;
+    case 'lobbystate':
+      pGameState=d.state;
+      document.getElementById('p-rcd').textContent=pRoom;
+      document.getElementById('p-hset').style.display='none';
+      document.getElementById('p-hbtns').style.display='none';
+      document.getElementById('p-gbtns').style.display='flex';
+      pRenderLobby(pGameState);pPSS('ps-lobby');
+      break;
+    case 'gamestate':
+      pApplyState(d.state);break;
+    case 'seen':
+      if(pGameState){
+        const p=pGameState.players.find(x=>x.id===d.id);
+        if(p)p.seen=true;
+        pRenderSeenPills();
+        if(pIsHost&&pGameState.players.every(x=>x.seen))setTimeout(pStartDiscussion,1200);
+      }
+      break;
+    case 'chat':
+      pAddChatMsg(d.name,d.msg);break;
+    case 'skip':
+      if(pIsHost)pAdvanceTurn();break;
+    case 'vote':
+      if(pIsHost){
+        if(!pGameState.votes)pGameState.votes=[];
+        pGameState.votes.push({voter:d.voter,target:d.target});
+        if(pGameState.votes.length>=pGameState.players.length)pTallyVotes();
+        else pNextVoter();
+      }
+      break;
+    case 'votestate':
+      pApplyVoteState(d);break;
+    case 'spyguess':
+      if(pIsHost)pHandleSpyGuess(d.guess);break;
+    case 'rtc_offer':case 'rtc_answer':case 'rtc_ice':
+      pHandleRTC(d);break;
+    case 'speaking':
+      pRenderSpeaking(d);break;
+    case 'left':
+      if(pGameState){pGameState.players=pGameState.players.filter(x=>x.id!==d.id);pRenderLobby(pGameState);}break;
+  }
+}
+
+function pRenderLobby(room){
+  const cnt=document.getElementById('p-lcnt');if(cnt)cnt.textContent=room.players.length;
+  const lst=document.getElementById('p-lplyr');if(!lst)return;lst.innerHTML='';
+  room.players.forEach(p=>{
+    const row=document.createElement('div');row.className='pprow';
+    const av=document.createElement('div');av.className='pav';av.style.background=pGetColor(p.name);av.textContent=p.avatar;
+    const nm=document.createElement('div');nm.className='pnm';nm.textContent=p.name;
+    row.appendChild(av);row.appendChild(nm);
+    if(p.id===room.host){const bdg=document.createElement('div');bdg.className='phbdg';bdg.textContent='HOST';row.appendChild(bdg);}
+    lst.appendChild(row);
+  });
+}
+
+function pHostStart(){
+  if(!pGameState||pGameState.players.length<3){alert('Butuh minimal 3 pemain!');return;}
+  const settings={
+    spyCount:parseInt(document.getElementById('p-spc').value),
+    mode:document.getElementById('p-gmd').value,
+    turnDuration:parseInt(document.getElementById('p-tdr').value),
+    category:document.getElementById('p-cat').value
+  };
+  pGameState.settings=settings;
+  // assign words
+  let cat=settings.category;
+  if(cat==='random'){const cats=Object.keys(P_WORDS);cat=cats[Math.floor(Math.random()*cats.length)];}
+  const catData=P_WORDS[cat];
+  const pair=catData.pairs[Math.floor(Math.random()*catData.pairs.length)];
+  const civWord=pair[0],spyWord=pair[1];
+  const shuffled=[...pGameState.players].sort(()=>Math.random()-.5);
+  const spyIds=shuffled.slice(0,settings.spyCount).map(p=>p.id);
+  pGameState.players.forEach(p=>{p.role=spyIds.includes(p.id)?'spy':'civilian';p.word=p.role==='spy'?spyWord:civWord;p.seen=false;});
+  pGameState.state='cards';pGameState.civWord=civWord;pGameState.spyWord=spyWord;pGameState.category=cat;
+  pGameState.turnOrder=[...pGameState.players].sort(()=>Math.random()-.5).map(p=>p.id);
+  pGameState.currentTurnIdx=0;pGameState.chatLog=[];pGameState.votes=[];pGameState.voteIdx=0;
+  pBroadcast({type:'gamestate',state:pGameState});
+  pApplyState(pGameState);
+}
+
+function pApplyState(state){
+  pGameState=state;
+  const me=state.players.find(p=>p.id===pMyId);
+  if(!me)return;
+  pMyRole=me.role;pMyWord=me.word;
+  if(state.state==='cards'){
+    document.getElementById('p-c3d').classList.remove('fl');
+    document.getElementById('p-rwho').textContent='Kamu: '+me.name;
+    document.getElementById('p-cfr').className='pcface pcfr '+(me.role==='spy'?'spy':'civ');
+    document.getElementById('p-rbdg').style.display='block';
+    document.getElementById('p-rbdg').textContent=me.role==='spy'?'🕵️ SPY':'👤 CIVILIAN';
+    document.getElementById('p-rico').textContent=me.role==='spy'?'🕵️':'👤';
+    document.getElementById('p-cwd').textContent=me.word;
+    document.getElementById('p-chnt').textContent=me.role==='spy'?'Kamu adalah SPY!':'Kamu bukan spy';
+    document.getElementById('p-seenbtn').style.display='block';
+    document.getElementById('p-cwrap').style.display='block';
+    document.getElementById('p-woths').style.display='none';
+    pRenderSeenPills();
+    pPSS('ps-card');
+  } else if(state.state==='discuss'){
+    pStartDiscussion();
+  } else if(state.state==='vote'){
+    pApplyVoteState({voteIdx:state.voteIdx,players:state.players});
+  } else if(state.state==='spyguess'){
+    pApplySpyGuessState(state);
+  } else if(state.state==='result'){
+    pApplyResult(state);
+  }
+}
+
+function pFlip(){document.getElementById('p-c3d').classList.toggle('fl');}
+function pMarkSeen(){
+  document.getElementById('p-seenbtn').style.display='none';
+  document.getElementById('p-cwrap').style.display='none';
+  document.getElementById('p-woths').style.display='block';
+  pBroadcast({type:'seen',id:pMyId,room:pRoom,from:pMyId});
+  if(pIsHost){
+    const me=pGameState.players.find(p=>p.id===pMyId);if(me)me.seen=true;
+    pRenderSeenPills();
+    if(pGameState.players.every(p=>p.seen))setTimeout(pStartDiscussion,1200);
+  }
+}
+function pRenderSeenPills(){
+  const el=document.getElementById('p-spils');if(!el||!pGameState)return;el.innerHTML='';
+  pGameState.players.forEach(p=>{
+    const pill=document.createElement('div');pill.className='ptag';pill.style.opacity=p.seen?'1':'.35';pill.textContent=(p.seen?'✅ ':'')+p.name;el.appendChild(pill);
+  });
+}
+
+function pStartDiscussion(){
+  if(!pGameState)return;
+  pGameState.state='discuss';
+  pPSS('ps-disc');
+  const mode=pGameState.settings.mode;
+  document.getElementById('p-tmode').textContent=mode==='voice'?'🎙️ Mode Voice':'💬 Mode Chat';
+  document.getElementById('p-rrem').textContent=pMyRole==='spy'?'🕵️':'👤';
+  document.getElementById('p-rrem').style.background=pMyRole==='spy'?'rgba(255,59,87,.2)':'rgba(0,229,176,.2)';
+  document.getElementById('p-rrbdg').textContent=pMyRole==='spy'?'SPY':'Civilian';
+  document.getElementById('p-rrwd').textContent='Katamu: '+pMyWord;
+  document.getElementById('p-tclog').style.display='none';
+  document.getElementById('p-tcmsg').innerHTML='';
+  document.getElementById('p-hvbtn').style.display=pIsHost?'flex':'none';
+  pRenderTurnState();
+}
+
+function pRenderTurnState(){
+  if(!pGameState||pGameState.state!=='discuss')return;
+  const idx=pGameState.currentTurnIdx;
+  const order=pGameState.turnOrder;
+  const curId=order[idx%order.length];
+  const curPlayer=pGameState.players.find(p=>p.id===curId);
+  document.getElementById('p-tidx').textContent=(idx%order.length)+1;
+  document.getElementById('p-ttot').textContent=order.length;
+  document.getElementById('p-tplyr').textContent=curPlayer?curPlayer.name:'-';
+  const prog=document.getElementById('p-tprog');prog.innerHTML='';
+  order.forEach((id,i)=>{const dot=document.createElement('div');dot.style.cssText='width:10px;height:10px;border-radius:50%;background:'+(i<idx%order.length?'var(--pa)':i===idx%order.length?'var(--pw)':'var(--pbd)');prog.appendChild(dot);});
+  const isMe=curId===pMyId;
+  document.getElementById('p-myta').style.display=isMe?'block':'none';
+  document.getElementById('p-waita').style.display=isMe?'none':'block';
+  if(!isMe&&curPlayer)document.getElementById('p-wfnm').textContent=curPlayer.name;
+  const mode=pGameState.settings.mode;
+  document.getElementById('p-chata').style.display=(isMe&&mode==='chat')?'block':'none';
+  document.getElementById('p-voicea').style.display=(isMe&&mode==='voice')?'block':'none';
+  if(isMe&&mode==='voice')pSetupVoice();
+  pStartTurnTimer(pGameState.settings.turnDuration);
+}
+
+function pStartTurnTimer(secs){
+  clearInterval(pTimerInt);let t=secs;const circ=352;
+  const tc=document.getElementById('p-tc'),td=document.getElementById('p-td');
+  tc.style.stroke='var(--pa)';
+  function tick(){
+    const pct=t/secs;tc.style.strokeDashoffset=circ*(1-pct);
+    tc.style.stroke=t<=10?'var(--pr)':'var(--pa)';
+    td.textContent=Math.floor(t/60)+':'+(t%60).toString().padStart(2,'0');
+    if(t<=0){clearInterval(pTimerInt);if(pIsHost)pAdvanceTurn();}
+    t--;
+  }
+  tick();pTimerInt=setInterval(tick,1000);
+}
+
+function pAdvanceTurn(){
+  if(!pGameState)return;
+  pGameState.currentTurnIdx++;
+  if(pGameState.currentTurnIdx>=pGameState.turnOrder.length){
+    // all done one round — optionally loop or go to vote
+    pGameState.currentTurnIdx=0;
+  }
+  pBroadcast({type:'gamestate',state:pGameState});
+  pRenderTurnState();
+}
+
+function pSkip(){pBroadcast({type:'skip',room:pRoom,from:pMyId});}
+
+function pAddChatMsg(name,msg){
+  const log=document.getElementById('p-tcmsg');if(!log)return;
+  document.getElementById('p-tclog').style.display='block';
+  const el=document.createElement('div');
+  el.style.cssText='background:var(--ps2);border-radius:10px;padding:8px 12px;font-size:13px;';
+  el.innerHTML=`<strong style="color:var(--pa);">${name}</strong><br><span style="color:#eeeef5;">${msg}</span>`;
+  log.appendChild(el);log.scrollTop=log.scrollHeight;
+}
+
+function pSubmitChat(){
+  const inp=document.getElementById('p-tci');const msg=inp.value.trim();if(!msg)return;
+  const me=pGameState.players.find(p=>p.id===pMyId);
+  pAddChatMsg(me.name,msg);
+  pBroadcast({type:'chat',name:me.name,msg,room:pRoom,from:pMyId});
+  inp.value='';pSkip();
+}
+
+function pHostVote(){
+  if(!pGameState)return;
+  pGameState.state='vote';pGameState.voteIdx=0;pGameState.votes=[];
+  pBroadcast({type:'gamestate',state:pGameState});
+  pApplyVoteState({voteIdx:0,players:pGameState.players});
+}
+
+function pApplyVoteState(d){
+  clearInterval(pTimerInt);
+  pPSS('ps-vote');
+  const voters=pGameState?pGameState.players:d.players;
+  const vIdx=d.voteIdx||0;
+  const currentVoter=voters[vIdx];
+  document.getElementById('p-vidx').textContent=vIdx+1;
+  document.getElementById('p-vtot').textContent=voters.length;
+  document.getElementById('p-cvwho').textContent='Giliran '+currentVoter.name+' voting';
+  const isMe=currentVoter&&currentVoter.id===pMyId;
+  document.getElementById('p-mvcard').style.display=isMe?'block':'none';
+  document.getElementById('p-vcbtnw').style.display=isMe?'block':'none';
+  document.getElementById('p-vwait').style.display=isMe?'none':'block';
+  document.getElementById('p-vdone').style.display='none';
+  document.getElementById('p-vstxt').textContent=isMe?'Siapa menurutmu yang jadi spy?':'Menunggu '+currentVoter.name+' memilih...';
+  if(isMe){
+    const lst=document.getElementById('p-vlst');lst.innerHTML='';pCurrentVote=null;
+    voters.filter(p=>p.id!==pMyId).forEach(p=>{
+      const btn=document.createElement('button');btn.className='pvbtn';
+      const av=document.createElement('div');av.className='pav';av.style.background=pGetColor(p.name);av.style.cssText+=';width:36px;height:36px;font-size:15px;';av.textContent=p.avatar;
+      const nm=document.createElement('span');nm.textContent=p.name;
+      btn.appendChild(av);btn.appendChild(nm);
+      btn.onclick=()=>{pCurrentVote=p.id;lst.querySelectorAll('.pvbtn').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');document.getElementById('p-vcbtn').disabled=false;};
+      lst.appendChild(btn);
+    });
+    document.getElementById('p-vcbtn').disabled=true;
+  }
+}
+
+function pSubmitVote(){
+  if(!pCurrentVote)return;
+  document.getElementById('p-mvcard').style.display='none';
+  document.getElementById('p-vcbtnw').style.display='none';
+  document.getElementById('p-vdone').style.display='block';
+  pBroadcast({type:'vote',voter:pMyId,target:pCurrentVote,room:pRoom,from:pMyId});
+}
+
+function pNextVoter(){
+  if(!pGameState)return;
+  pGameState.voteIdx=(pGameState.voteIdx||0)+1;
+  if(pGameState.voteIdx>=pGameState.players.length){pTallyVotes();return;}
+  pBroadcast({type:'gamestate',state:{...pGameState,state:'vote'}});
+  pApplyVoteState({voteIdx:pGameState.voteIdx,players:pGameState.players});
+}
+
+function pTallyVotes(){
+  if(!pGameState)return;
+  const tally={};
+  (pGameState.votes||[]).forEach(v=>{tally[v.target]=(tally[v.target]||0)+1;});
+  const maxVotes=Math.max(...Object.values(tally),0);
+  const topIds=Object.keys(tally).filter(id=>tally[id]===maxVotes);
+  const eliminated=topIds[0];
+  const eliminatedPlayer=pGameState.players.find(p=>p.id===eliminated);
+  const spies=pGameState.players.filter(p=>p.role==='spy');
+  const spyCaught=eliminatedPlayer&&eliminatedPlayer.role==='spy';
+  if(spyCaught&&spies.length===1){
+    // one spy caught — give spy guess chance
+    pGameState.state='spyguess';pGameState.caughtSpy=eliminated;
+    pBroadcast({type:'gamestate',state:pGameState});
+    pApplySpyGuessState(pGameState);
+  } else {
+    pGameState.state='result';
+    pGameState.winner=spyCaught?'civilians':'spy';
+    pBroadcast({type:'gamestate',state:pGameState});
+    pApplyResult(pGameState);
+  }
+}
+
+function pApplySpyGuessState(state){
+  pGameState=state;
+  pPSS('ps-guess');
+  const spy=state.players.find(p=>p.id===state.caughtSpy);
+  document.getElementById('p-cnm').textContent=(spy?spy.name:'')+' tertangkap! Bisakah spy menebak kata?';
+  const isMe=state.caughtSpy===pMyId;
+  document.getElementById('p-ggsc').style.display=isMe?'block':'none';
+  document.getElementById('p-ggwt').style.display=isMe?'none':'block';
+  if(isMe){
+    // generate 6 choices (real + 5 decoys)
+    const real=state.civWord;
+    const allWords=Object.values(P_WORDS).flatMap(c=>c.pairs.flat()).filter(w=>w!==real&&w!==state.spyWord);
+    const decoys=allWords.sort(()=>Math.random()-.5).slice(0,5);
+    const choices=[real,...decoys].sort(()=>Math.random()-.5);
+    const grid=document.getElementById('p-ggrd');grid.innerHTML='';
+    choices.forEach(w=>{
+      const btn=document.createElement('button');btn.className='ggbtn';btn.textContent=w;
+      btn.onclick=()=>{grid.querySelectorAll('.ggbtn').forEach(b=>{b.disabled=true;});btn.classList.add('ok');pBroadcast({type:'spyguess',guess:w,room:pRoom,from:pMyId});};
+      grid.appendChild(btn);
+    });
+  }
+}
+
+function pHandleSpyGuess(guess){
+  if(!pGameState)return;
+  const correct=guess===pGameState.civWord;
+  pGameState.state='result';
+  pGameState.winner=correct?'spy':'civilians';
+  pGameState.spyGuess=guess;pGameState.spyGuessCorrect=correct;
+  pBroadcast({type:'gamestate',state:pGameState});
+  pApplyResult(pGameState);
+}
+
+function pApplyResult(state){
+  pGameState=state;
+  clearInterval(pTimerInt);
+  const win=state.winner==='spy'?(pMyRole==='spy'):(pMyRole==='civilian');
+  const rhr=document.getElementById('p-rhr');
+  rhr.className='rhr '+(win?'win':'los');
+  document.getElementById('p-remj').textContent=win?'🎉':'😢';
+  document.getElementById('p-rtit').textContent=win?'MENANG!':'KALAH!';
+  let sub=state.winner==='spy'?'Spy berhasil lolos!':'Civilians berhasil menangkap spy!';
+  if(state.spyGuessCorrect!==undefined)sub+=' '+(state.spyGuessCorrect?'Spy menebak benar! Spy menang!':'Spy salah menebak. Civilians menang!');
+  document.getElementById('p-rsub').textContent=sub;
+  document.getElementById('p-rwd').textContent=state.civWord||'-';
+  document.getElementById('p-rcat').textContent='Kategori: '+state.category;
+  const rrls=document.getElementById('p-rrls');rrls.innerHTML='';
+  state.players.forEach(p=>{
+    const row=document.createElement('div');row.className='rrrow'+(p.role==='spy'?' ispy':'');
+    const av=document.createElement('div');av.className='pav';av.style.cssText='width:34px;height:34px;font-size:15px;background:'+pGetColor(p.name)+';';av.textContent=p.avatar;
+    const nm=document.createElement('div');nm.className='pnm';nm.textContent=p.name;
+    const bdg=document.createElement('div');bdg.className='rbdg '+(p.role==='spy'?'rbdg-s':'rbdg-c');bdg.textContent=p.role==='spy'?'SPY':'Civilian';
+    const wd=document.createElement('div');wd.style.cssText='font-size:11px;color:#62628a;margin-left:auto;';wd.textContent=p.word;
+    row.appendChild(av);row.appendChild(nm);row.appendChild(bdg);row.appendChild(wd);rrls.appendChild(row);
+  });
+  const rvts=document.getElementById('p-rvts');rvts.innerHTML='';
+  (state.votes||[]).forEach(v=>{
+    const voter=state.players.find(p=>p.id===v.voter);
+    const target=state.players.find(p=>p.id===v.target);
+    const row=document.createElement('div');row.className='rrrow';
+    row.innerHTML=`<span style="font-size:13px;color:#eeeef5;">${voter?voter.name:'?'}</span><span style="font-size:11px;color:#62628a;margin-left:auto;">→ ${target?target.name:'?'}</span>`;
+    rvts.appendChild(row);
+  });
+  document.getElementById('p-pagbtn').style.display=pIsHost?'block':'none';
+  pPSS('ps-result');
+}
+
+function pPlayAgain(){
+  if(!pGameState||!pIsHost)return;
+  pGameState.players.forEach(p=>{p.seen=false;p.role=null;p.word=null;});
+  pGameState.state='lobby';pGameState.votes=[];pGameState.voteIdx=0;pGameState.chatLog=[];
+  pBroadcast({type:'lobbystate',state:pGameState});
+  pRenderLobby(pGameState);
+  document.getElementById('p-hbtns').style.display='flex';
+  document.getElementById('p-gbtns').style.display='none';
+  document.getElementById('p-startbtn').disabled=pGameState.players.length<3;
+  pPSS('ps-lobby');
+}
+function pLeave(){
+  if(pWS){pBroadcast({type:'left',id:pMyId,room:pRoom,from:pMyId});pWS.close();}
+  clearInterval(pTimerInt);pRoom=null;pMyId=null;pIsHost=false;pWS=null;pGameState=null;
+  pPSS('ps-home');
+}
+function pCopy(){
+  navigator.clipboard.writeText(pRoom).then(()=>{
+    document.getElementById('p-cph').textContent='✅ Disalin!';setTimeout(()=>document.getElementById('p-cph').textContent='Tap untuk copy kode',1500);
+  });
+}
+
+// Voice (WebRTC push-to-talk stub)
+function pSetupVoice(){
+  const btn=document.getElementById('pttBtn');if(!btn)return;
+  btn.onmousedown=btn.ontouchstart=()=>{btn.style.background='var(--pr)';btn.style.transform='scale(.95)';pBroadcast({type:'speaking',id:pMyId,speaking:true,room:pRoom,from:pMyId});};
+  btn.onmouseup=btn.ontouchend=()=>{btn.style.background='';btn.style.transform='';pBroadcast({type:'speaking',id:pMyId,speaking:false,room:pRoom,from:pMyId});};
+}
+function pRenderSpeaking(d){
+  const el=document.getElementById('p-spkl');if(!el||!pGameState)return;
+  if(!d.speaking){el.innerHTML='';return;}
+  const p=pGameState.players.find(x=>x.id===d.id);
+  if(p){const pill=document.createElement('div');pill.className='spkpil';pill.textContent='🎙️ '+p.name;el.appendChild(pill);}
+}
+
+// init single on load
+document.addEventListener('DOMContentLoaded',()=>{
+  // pre-fill wordle
+});
+document.getElementById('wv').addEventListener('click',()=>{
+  if(!document.getElementById('ws-home').classList.contains('on'))return;
+});
+// start single wordle when screen shown
+const _wSSorig=wSS;
+window.wSS=function(s){
+  _wSSorig(s);
+  if(s==='single')wInitSingle();
+};
+</script>
+</body>
+</html>
