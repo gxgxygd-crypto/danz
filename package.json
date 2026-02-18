@@ -1,17 +1,12 @@
 {
-  "name": "whos-the-spy-server",
+  "name": "game-hub",
   "version": "1.0.0",
-  "description": "Backend server for Who's The Spy multiplayer game",
+  "description": "Wordle + Skribbl + Who's The Spy — satu server",
   "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
-  },
+  "scripts": { "start": "node server.js" },
   "dependencies": {
     "express": "^4.18.2",
-    "ws": "^8.16.0"
-  },
-  "engines": {
-    "node": ">=18"
+    "socket.io": "^4.6.0",
+    "ws": "^8.14.2"
   }
 }
