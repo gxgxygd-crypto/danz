@@ -35,6 +35,12 @@ button{cursor:pointer;}
 .hc-s .hub-title{color:#4ECDC4;}
 .hc-p{background:linear-gradient(135deg,#1a0a1a,#0f050f);border:1px solid rgba(109,40,217,.3);box-shadow:0 6px 24px rgba(109,40,217,.15);}
 .hc-p .hub-title{color:#00e5b0;}
+.hc-t{background:linear-gradient(135deg,#1a1500,#0f0e00);border:1px solid rgba(251,146,60,.3);box-shadow:0 6px 24px rgba(251,146,60,.12);}
+.hc-t .hub-title{color:#fb923c;}
+.hc-b{background:linear-gradient(135deg,#1a0000,#0f0000);border:1px solid rgba(239,68,68,.3);box-shadow:0 6px 24px rgba(239,68,68,.12);}
+.hc-b .hub-title{color:#ef4444;}
+.hc-bl{background:linear-gradient(135deg,#001a1a,#000f0f);border:1px solid rgba(20,184,166,.3);box-shadow:0 6px 24px rgba(20,184,166,.12);}
+.hc-bl .hub-title{color:#14b8a6;}
 #hback{position:fixed;top:14px;left:14px;z-index:999;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:8px 14px;color:#eeeef5;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;backdrop-filter:blur(8px);display:none;}
 #hback.vis{display:block;}
 
@@ -291,6 +297,15 @@ button{cursor:pointer;}
     </button>
     <button class="hub-card hc-p" onclick="openGame('p')">
       <div class="hub-inner"><div class="hub-icon">🕵️</div><div><div class="hub-title">WHO'S THE SPY?</div><div class="hub-desc">Temukan spy di antara pemain · Chat &amp; Voice</div></div><div class="hub-arr">›</div></div>
+    </button>
+    <button class="hub-card hc-t" onclick="openGame('t')">
+      <div class="hub-inner"><div class="hub-icon">❓</div><div><div class="hub-title">TRIVIA BATTLE</div><div class="hub-desc">Kuis pengetahuan umum · Cepat &amp; seru</div></div><div class="hub-arr">›</div></div>
+    </button>
+    <button class="hub-card hc-b" onclick="openGame('b')">
+      <div class="hub-inner"><div class="hub-icon">💣</div><div><div class="hub-title">BOMB PARTY</div><div class="hub-desc">Ketik kata dengan suku kata · Sebelum bom meledak</div></div><div class="hub-arr">›</div></div>
+    </button>
+    <button class="hub-card hc-bl" onclick="openGame('bl')">
+      <div class="hub-inner"><div class="hub-icon">🃏</div><div><div class="hub-title">KARTU BOHONG</div><div class="hub-desc">Bluff atau percaya · Siapa yang bohong?</div></div><div class="hub-arr">›</div></div>
     </button>
   </div>
 </div>
@@ -579,11 +594,14 @@ function initSocket(){
   socket = io();
   setupWordleEvents();
   setupSkribblEvents();
+  setupTriviaEvents();
+  setupBombEvents();
+  setupBluffEvents();
 }
 function openGame(g){
   document.getElementById('hub').classList.add('hidden');
   document.getElementById('hback').classList.add('vis');
-  const map={w:'wv',s:'sv',p:'pv'};
+  const map={w:'wv',s:'sv',p:'pv',t:'tv',b:'bv',bl:'blv'};
   document.getElementById(map[g]).classList.add('active');
   if(g!=='p') initSocket();
 }
@@ -1571,6 +1589,997 @@ window.wSS=function(s){
   _wSSorig(s);
   if(s==='single')wInitSingle();
 };
+
+// ════ TRIVIA ════
+let tRoom=null,tMyId=null,tIsHost=false,tTimer=null;
+
+function tSS(id){document.querySelectorAll('.tsc').forEach(e=>{e.classList.remove('on');e.style.display='none';});const el=document.getElementById(id);if(el){el.style.display='flex';el.classList.add('on');}}
+function tCreate(){
+  const nm=document.getElementById('t-nm').value.trim();
+  if(!nm){document.getElementById('t-err').textContent='Masukkan nama dulu!';return;}
+  initSocket();socket.emit('trivia:create',{name:nm});
+}
+function tJoin(){
+  const nm=document.getElementById('t-nm').value.trim();
+  const code=document.getElementById('t-jcd').value.trim().toUpperCase();
+  if(!nm||!code){document.getElementById('t-err').textContent='Isi semua field!';return;}
+  initSocket();socket.emit('trivia:join',{roomId:code,name:nm});
+}
+function tStart(){socket.emit('trivia:start',{roomId:tRoom});}
+function tLeave(){clearInterval(tTimer);socket&&socket.emit('trivia:leave',{roomId:tRoom});tRoom=null;tSS('ts-home');}
+
+function tRenderLobby(players){
+  const el=document.getElementById('t-lplyr');if(!el)return;el.innerHTML='';
+  document.getElementById('t-cnt').textContent=players.length;
+  players.forEach(p=>{
+    const row=document.createElement('div');row.className='tprow'+(p.id===tMyId?' me':'');
+    row.innerHTML=`<span style="font-size:22px;">${['🟠','🔵','🟣','🟢','🔴','🟡'][players.indexOf(p)%6]}</span><span style="flex:1;font-weight:600;">${p.name}</span><span style="color:#fb923c;font-weight:700;">${p.score||0} pts</span>`;
+    el.appendChild(row);
+  });
+}
+
+socket&&socket.on&&(function(){
+  // will be set up in setupNewGamesEvents
+})();
+
+function setupNewGamesEvents(){
+  // ── TRIVIA ──
+  socket.on('trivia:created',(d)=>{
+    tRoom=d.roomId;tMyId=socket.id;tIsHost=true;
+    document.getElementById('t-rcd').textContent=d.roomId;
+    document.getElementById('t-stbtn').style.display='block';
+    document.getElementById('t-wait').style.display='none';
+    document.getElementById('t-err').textContent='';
+    tSS('ts-lobby');
+  });
+  socket.on('trivia:joined',(d)=>{
+    tRoom=d.roomId;tMyId=socket.id;tIsHost=(d.hostId===socket.id);
+    document.getElementById('t-rcd').textContent=d.roomId;
+    document.getElementById('t-stbtn').style.display=tIsHost?'block':'none';
+    document.getElementById('t-wait').style.display=tIsHost?'none':'block';
+    document.getElementById('t-err').textContent='';
+    tSS('ts-lobby');
+  });
+  socket.on('trivia:players',(d)=>{tRenderLobby(d);});
+  socket.on('trivia:error',(d)=>{
+    const msg=typeof d==='string'?d:d.msg||'Error';
+    document.getElementById('t-err').textContent=msg;
+    document.getElementById('t-lerr').textContent=msg;
+  });
+  socket.on('trivia:started',()=>{tSS('ts-game');});
+  socket.on('trivia:question',(d)=>{
+    clearInterval(tTimer);
+    document.getElementById('t-qnum').textContent=`Soal ${d.idx+1}/${d.total}`;
+    document.getElementById('t-qtxt').textContent=d.question;
+    document.getElementById('t-res').style.display='none';
+    const opts=document.getElementById('t-opts');opts.innerHTML='';
+    d.opts.forEach(o=>{
+      const b=document.createElement('button');b.className='topt';b.textContent=o;
+      b.onclick=()=>{
+        opts.querySelectorAll('.topt').forEach(x=>x.disabled=true);
+        socket.emit('trivia:answer',{roomId:tRoom,answer:o});
+        b.style.borderColor='#fb923c';b.style.background='rgba(251,146,60,.1)';
+      };
+      opts.appendChild(b);
+    });
+    let t=d.timeLimit;
+    document.getElementById('t-timer').textContent=t;
+    document.getElementById('t-pf').style.width='100%';
+    tTimer=setInterval(()=>{
+      t--;document.getElementById('t-timer').textContent=Math.max(0,t);
+      document.getElementById('t-pf').style.width=(t/d.timeLimit*100)+'%';
+      if(t<=0)clearInterval(tTimer);
+    },1000);
+  });
+  socket.on('trivia:answer_result',(d)=>{
+    const opts=document.querySelectorAll('#t-opts .topt');
+    // highlight selected
+  });
+  socket.on('trivia:reveal',(d)=>{
+    clearInterval(tTimer);
+    document.getElementById('t-pf').style.width='0%';
+    const opts=document.querySelectorAll('#t-opts .topt');
+    opts.forEach(b=>{b.disabled=true;if(b.textContent===d.correct){b.classList.add('correct');}else if(b.style.borderColor==='rgb(251, 146, 60)'){b.classList.add('wrong');}});
+    const res=document.getElementById('t-res');res.style.display='block';
+    const gsb=document.getElementById('t-gsb');gsb.innerHTML='';
+    const sorted=[...d.players].sort((a,b)=>b.score-a.score);
+    sorted.forEach((p,i)=>{
+      const row=document.createElement('div');row.className='tprow'+(p.id===tMyId?' me':'');
+      row.innerHTML=`<span>${['🥇','🥈','🥉'][i]||'#'+(i+1)}</span><span style="flex:1;font-weight:600;">${p.name}</span><span style="color:#fb923c;font-weight:700;">${p.score} pts</span>`;
+      gsb.appendChild(row);
+    });
+  });
+  socket.on('trivia:end',(d)=>{
+    clearInterval(tTimer);
+    const fin=document.getElementById('t-final');fin.innerHTML='';
+    d.players.forEach((p,i)=>{
+      const row=document.createElement('div');row.className='tprow'+(p.id===tMyId?' me':'');
+      row.style.background=i===0?'rgba(251,146,60,.12)':'';
+      row.style.borderColor=i===0?'#fb923c':'';
+      row.innerHTML=`<span style="font-size:20px;">${['🥇','🥈','🥉'][i]||'#'+(i+1)}</span><span style="flex:1;font-weight:700;">${p.name}</span><span style="color:#fb923c;font-family:'Bebas Neue',cursive;font-size:22px;">${p.score}</span>`;
+      fin.appendChild(row);
+    });
+    tSS('ts-end');
+  });
+
+  // ── BOMB PARTY ──
+  socket.on('bomb:created',(d)=>{
+    bRoom=d.roomId;bMyId=socket.id;bIsHost=true;
+    document.getElementById('b-rcd').textContent=d.roomId;
+    document.getElementById('b-stbtn').style.display='block';
+    document.getElementById('b-wait').style.display='none';
+    document.getElementById('b-err').textContent='';
+    bSS('bs-lobby');
+  });
+  socket.on('bomb:joined',(d)=>{
+    bRoom=d.roomId;bMyId=socket.id;bIsHost=(d.hostId===socket.id);
+    document.getElementById('b-rcd').textContent=d.roomId;
+    document.getElementById('b-stbtn').style.display=bIsHost?'block':'none';
+    document.getElementById('b-wait').style.display=bIsHost?'none':'block';
+    document.getElementById('b-err').textContent='';
+    bSS('bs-lobby');
+  });
+  socket.on('bomb:players',(d)=>{bRenderLobby(d);});
+  socket.on('bomb:error',(d)=>{
+    const msg=typeof d==='string'?d:d.msg||'Error';
+    document.getElementById('b-err').textContent=msg;
+    document.getElementById('b-lerr').textContent=msg;
+  });
+  socket.on('bomb:started',()=>{bSS('bs-game');document.getElementById('b-lastword').textContent='';});
+  socket.on('bomb:turn',(d)=>{
+    bCurrentTurnId=d.playerId;
+    document.getElementById('b-syl').textContent=d.syllable;
+    document.getElementById('b-status').textContent=`Ronde ${d.round||''}`;
+    bRenderGamePlayers(d.players);
+    const isMe=d.playerId===bMyId;
+    document.getElementById('b-myinp').style.display=isMe?'block':'none';
+    document.getElementById('b-waitinp').style.display=isMe?'none':'block';
+    if(!isMe){document.getElementById('b-wname').textContent=d.playerName;document.getElementById('b-wtimer').textContent=d.timeLimit;}
+    if(isMe){document.getElementById('b-winp').value='';document.getElementById('b-winp').focus();document.getElementById('b-winperr').textContent='';document.getElementById('b-tnum').textContent=d.timeLimit;}
+    // countdown
+    clearInterval(bTimerInt);let t=d.timeLimit;
+    bTimerInt=setInterval(()=>{
+      t--;
+      if(document.getElementById('b-tnum'))document.getElementById('b-tnum').textContent=Math.max(0,t);
+      if(document.getElementById('b-wtimer'))document.getElementById('b-wtimer').textContent=Math.max(0,t);
+      if(t<=0)clearInterval(bTimerInt);
+    },1000);
+  });
+  socket.on('bomb:valid',(d)=>{
+    clearInterval(bTimerInt);
+    document.getElementById('b-lastword').textContent='✅ '+d.playerName+': "'+d.word+'"';
+    bRenderGamePlayers(d.players);
+  });
+  socket.on('bomb:explode',(d)=>{
+    clearInterval(bTimerInt);
+    document.getElementById('b-bomb').style.filter='drop-shadow(0 0 30px #ef4444)';
+    setTimeout(()=>{document.getElementById('b-bomb').style.filter='drop-shadow(0 0 16px rgba(239,68,68,.5))';},600);
+    const who=d.playerId===bMyId?'💥 Kamu kena bom!':'💥 '+bGetName(d.playerId)+' kena bom!';
+    document.getElementById('b-lastword').textContent=who;
+    bRenderGamePlayers(d.players);
+  });
+  socket.on('bomb:invalid',(d)=>{document.getElementById('b-winperr').textContent=d.reason;});
+  socket.on('bomb:end',(d)=>{
+    clearInterval(bTimerInt);
+    const isWin=d.winner&&d.winner.id===bMyId;
+    document.getElementById('b-endemo').textContent=isWin?'🏆':'😢';
+    document.getElementById('b-endtit').textContent=isWin?'KAMU MENANG!':d.winner?d.winner.name+' MENANG!':'GAME SELESAI!';
+    document.getElementById('b-endsub').textContent=isWin?'Kamu pemain terakhir yang bertahan!':'Lebih beruntung lain kali!';
+    const lst=document.getElementById('b-endlst');lst.innerHTML='';
+    d.players.forEach(p=>{
+      const row=document.createElement('div');
+      row.style.cssText='display:flex;align-items:center;gap:10px;padding:10px 12px;background:#1a0505;border:1px solid rgba(239,68,68,.15);border-radius:10px;';
+      row.innerHTML=`<span style="font-size:18px;">${p.lives>0?'🏆':'💀'}</span><span style="flex:1;font-weight:600;color:#eeeef5;">${p.name}</span><span style="color:#ef4444;">${'❤️'.repeat(p.lives)||'💀'}</span>`;
+      lst.appendChild(row);
+    });
+    bSS('bs-end');
+  });
+
+  // ── KARTU BOHONG ──
+  socket.on('bluff:created',(d)=>{
+    glRoom=d.roomId;glMyId=socket.id;glIsHost=true;
+    document.getElementById('gl-rcd').textContent=d.roomId;
+    document.getElementById('gl-stbtn').style.display='block';
+    document.getElementById('gl-wait').style.display='none';
+    document.getElementById('gl-err').textContent='';
+    glSS('gls-lobby');
+  });
+  socket.on('bluff:joined',(d)=>{
+    glRoom=d.roomId;glMyId=socket.id;glIsHost=(d.hostId===socket.id);
+    document.getElementById('gl-rcd').textContent=d.roomId;
+    document.getElementById('gl-stbtn').style.display=glIsHost?'block':'none';
+    document.getElementById('gl-wait').style.display=glIsHost?'none':'block';
+    document.getElementById('gl-err').textContent='';
+    glSS('gls-lobby');
+  });
+  socket.on('bluff:players',(d)=>{glRenderLobby(d);});
+  socket.on('bluff:error',(d)=>{
+    const msg=typeof d==='string'?d:d.msg||'Error';
+    document.getElementById('gl-err').textContent=msg;
+    document.getElementById('gl-lerr').textContent=msg;
+  });
+  socket.on('bluff:started',()=>{glSS('gls-game');});
+  socket.on('bluff:hand',(d)=>{glMyHand=d.hand;glRenderHand();});
+  socket.on('bluff:turn',(d)=>{
+    glCurrentRank=d.currentRank;glCurrentTurnId=d.playerId;glPileCount=d.pileCount;glCanChallenge=false;
+    document.getElementById('gl-crank').textContent=d.currentRank;
+    document.getElementById('gl-playrank').textContent=d.currentRank;
+    document.getElementById('gl-pilecnt').textContent=d.pileCount+' kartu';
+    document.getElementById('gl-lastplay').textContent='';
+    glRenderGamePlayers(d.players);
+    const isMe=d.playerId===glMyId;
+    document.getElementById('gl-myact').style.display=isMe?'flex':'none';
+    document.getElementById('gl-waitact').style.display=isMe?'none':'block';
+    if(!isMe)document.getElementById('gl-wname').textContent=d.playerName;
+    document.getElementById('gl-chalb').style.display='none';
+    document.getElementById('gl-chalb2').style.display='none';
+  });
+  socket.on('bluff:played',(d)=>{
+    glPileCount=d.pileCount;glCanChallenge=true;
+    document.getElementById('gl-pilecnt').textContent=d.pileCount+' kartu';
+    document.getElementById('gl-lastplay').textContent=d.playerName+' klaim '+d.count+' buah '+d.claimedRank;
+    // show challenge button for non-active players
+    const isMyTurn=glCurrentTurnId===glMyId;
+    if(!isMyTurn){document.getElementById('gl-chalb2').style.display='block';}
+    else{document.getElementById('gl-chalb').style.display='block';}
+    glRenderGamePlayers(d.players);
+  });
+  socket.on('bluff:challenge_result',(d)=>{
+    const msg=d.wasBluff?`🎯 BOHONG! Kartu aslinya: ${d.actualCards.join(',')} — ${d.loserName} ambil semua!`:`✅ JUJUR! Kartu aslinya: ${d.actualCards.join(',')} — ${d.loserName} ambil semua!`;
+    document.getElementById('gl-lastplay').textContent=msg;
+    glRenderGamePlayers(d.players);
+    document.getElementById('gl-chalb').style.display='none';
+    document.getElementById('gl-chalb2').style.display='none';
+    document.getElementById('gl-pilecnt').textContent='0 kartu';
+  });
+  socket.on('bluff:out',(d)=>{
+    if(d.playerId===glMyId){document.getElementById('gl-lastplay').textContent='🏆 Kamu selesaikan semua kartu!';}
+  });
+  socket.on('bluff:end',(d)=>{
+    const isWin=d.winner&&d.winner.id===glMyId;
+    document.getElementById('gl-endtit').textContent=isWin?'KAMU MENANG!':d.winner?d.winner.name+' MENANG!':'SELESAI!';
+    document.getElementById('gl-endsub').textContent=isWin?'Semua kartumu sudah habis! 🎉':'Habiskan semua kartu lebih cepat lain kali!';
+    glSS('gls-end');
+  });
+}
+
+// ── TRIVIA helpers ──
+// (tSS & tCreate already defined above)
+
+// ── BOMB PARTY helpers ──
+let bRoom=null,bMyId=null,bIsHost=false,bTimerInt=null,bCurrentTurnId=null,bPlayers=[];
+function bSS(id){document.querySelectorAll('.bsc').forEach(e=>{e.classList.remove('on');e.style.display='none';});const el=document.getElementById(id);if(el){el.style.display='flex';el.classList.add('on');}}
+function bCreate(){
+  const nm=document.getElementById('b-nm').value.trim();
+  if(!nm){document.getElementById('b-err').textContent='Masukkan nama dulu!';return;}
+  initSocket();socket.emit('bomb:create',{name:nm});
+}
+function bJoin(){
+  const nm=document.getElementById('b-nm').value.trim();
+  const code=document.getElementById('b-jcd').value.trim().toUpperCase();
+  if(!nm||!code){document.getElementById('b-err').textContent='Isi semua field!';return;}
+  initSocket();socket.emit('bomb:join',{roomId:code,name:nm});
+}
+function bStart(){socket.emit('bomb:start',{roomId:bRoom});}
+function bLeave(){clearInterval(bTimerInt);socket&&socket.emit('bomb:leave',{roomId:bRoom});bRoom=null;bSS('bs-home');}
+function bSubmit(){
+  const word=document.getElementById('b-winp').value.trim();
+  if(!word)return;
+  socket.emit('bomb:word',{roomId:bRoom,word});
+  document.getElementById('b-winp').value='';
+}
+function bGetName(id){const p=bPlayers.find(x=>x.id===id);return p?p.name:id;}
+function bRenderLobby(players){
+  bPlayers=players;
+  const el=document.getElementById('b-lplyr');if(!el)return;el.innerHTML='';
+  players.forEach(p=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:10px;background:#1a0505;border:1px solid rgba(239,68,68,.15);border-radius:10px;padding:10px 12px;';
+    row.innerHTML=`<span style="font-size:20px;">💣</span><span style="flex:1;font-weight:600;color:#eeeef5;">${p.name}</span><span style="color:#ef4444;">❤️❤️❤️</span>`;
+    el.appendChild(row);
+  });
+}
+function bRenderGamePlayers(players){
+  bPlayers=players;
+  const el=document.getElementById('b-gplyr');if(!el)return;el.innerHTML='';
+  players.forEach(p=>{
+    const tag=document.createElement('div');
+    const isMe=p.id===bMyId;const isCur=p.id===bCurrentTurnId;
+    tag.style.cssText=`display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:20px;font-size:13px;font-weight:700;border:2px solid ${isCur?'#ef4444':p.alive===false||p.lives===0?'rgba(255,255,255,.1)':'rgba(239,68,68,.2)'};background:${isCur?'rgba(239,68,68,.12)':'transparent'};color:${p.alive===false||p.lives===0?'#555':'#eeeef5'};`;
+    tag.innerHTML=`${isCur?'💣':''}${p.name} ${'❤️'.repeat(Math.max(0,p.lives||0))}`;
+    el.appendChild(tag);
+  });
+  const me=players.find(p=>p.id===bMyId);
+  if(me)document.getElementById('b-lives').textContent='❤️'.repeat(Math.max(0,me.lives||0));
+}
+
+// ── KARTU BOHONG helpers ──
+let glRoom=null,glMyId=null,glIsHost=false,glMyHand=[],glSelected=[],glCurrentRank='A',glCurrentTurnId=null,glPileCount=0,glCanChallenge=false;
+function glSS(id){document.querySelectorAll('.glsc').forEach(e=>{e.classList.remove('on');e.style.display='none';});const el=document.getElementById(id);if(el){el.style.display='flex';el.classList.add('on');}}
+function glCreate(){
+  const nm=document.getElementById('gl-nm').value.trim();
+  if(!nm){document.getElementById('gl-err').textContent='Masukkan nama dulu!';return;}
+  initSocket();socket.emit('bluff:create',{name:nm});
+}
+function glJoin(){
+  const nm=document.getElementById('gl-nm').value.trim();
+  const code=document.getElementById('gl-jcd').value.trim().toUpperCase();
+  if(!nm||!code){document.getElementById('gl-err').textContent='Isi semua field!';return;}
+  initSocket();socket.emit('bluff:join',{roomId:code,name:nm});
+}
+function glStart(){socket.emit('bluff:start',{roomId:glRoom});}
+function glLeave(){socket&&socket.emit('bluff:leave',{roomId:glRoom});glRoom=null;glMyHand=[];glSelected=[];glSS('gls-home');}
+function glRenderLobby(players){
+  const el=document.getElementById('gl-lplyr');if(!el)return;el.innerHTML='';
+  players.forEach(p=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:10px;background:#0d1f1f;border:1px solid rgba(20,184,166,.15);border-radius:10px;padding:10px 12px;';
+    row.innerHTML=`<span style="font-size:20px;">🃏</span><span style="flex:1;font-weight:600;color:#eeeef5;">${p.name}</span>${p.id===glMyId?'<span style="font-size:11px;background:rgba(20,184,166,.15);color:#14b8a6;border-radius:20px;padding:2px 8px;font-weight:700;">KAMU</span>':''}`;
+    el.appendChild(row);
+  });
+}
+function glRenderHand(){
+  const el=document.getElementById('gl-hand');if(!el)return;el.innerHTML='';
+  document.getElementById('gl-hcnt').textContent=glMyHand.length;
+  glSelected=[];
+  const redRanks=['J','Q','K'];
+  glMyHand.forEach((card,i)=>{
+    const c=document.createElement('div');c.className='gcard-item'+(redRanks.includes(card)?' red':'');c.textContent=card;
+    c.onclick=()=>{
+      if(glSelected.includes(i)){glSelected=glSelected.filter(x=>x!==i);c.classList.remove('sel');}
+      else if(glSelected.length<4){glSelected.push(i);c.classList.add('sel');}
+    };
+    el.appendChild(c);
+  });
+}
+function glPlay(){
+  const count=parseInt(document.getElementById('gl-cnt').value);
+  if(glMyHand.length===0){return;}
+  socket.emit('bluff:play',{roomId:glRoom,count,claimedRank:glCurrentRank});
+  glMyHand.splice(0,Math.min(count,glMyHand.length));
+  glRenderHand();
+}
+function glChallenge(){socket.emit('bluff:challenge',{roomId:glRoom});}
+function glRenderGamePlayers(players){
+  const el=document.getElementById('gl-gplyr');if(!el)return;el.innerHTML='';
+  players.forEach(p=>{
+    const row=document.createElement('div');
+    const isMe=p.id===glMyId;const isCur=p.id===glCurrentTurnId;
+    row.style.cssText=`display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:10px;border:1px solid ${isCur?'rgba(20,184,166,.4)':'rgba(20,184,166,.1)'};background:${isCur?'rgba(20,184,166,.07)':'transparent'};${p.out?'opacity:.4':''}`;
+    row.innerHTML=`<span style="font-size:16px;">${isCur?'▶':'🃏'}</span><span style="flex:1;font-weight:600;color:#eeeef5;">${p.name}${isMe?' (Kamu)':''}</span><span style="font-size:12px;color:#14b8a6;">${p.out?'✅ SELESAI':p.cardCount+' kartu'}</span>`;
+    el.appendChild(row);
+  });
+}
+
 </script>
+
+<!-- ════ TRIVIA VIEW ════ -->
+<div id="tv" class="gview" style="background:#0a0a15;overflow-y:auto;font-family:'DM Sans',sans-serif;">
+<style>
+#tv{--ta:#fb923c;--tb:#161620;}
+#tv .tcard{background:var(--tb);border:1px solid rgba(255,255,255,.07);border-radius:18px;padding:20px;margin-bottom:14px;width:100%;max-width:500px;}
+#tv .thdr{font-family:'Bebas Neue',cursive;font-size:clamp(38px,12vw,66px);background:linear-gradient(135deg,#fff,#fb923c);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-align:center;letter-spacing:3px;}
+#tv input{width:100%;background:var(--tb);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:13px 16px;color:#eeeef5;font-size:15px;font-family:'DM Sans',sans-serif;outline:none;}
+#tv input:focus{border-color:var(--ta);}
+#tv .tbtn{display:flex;align-items:center;justify-content:center;width:100%;padding:14px;border-radius:12px;border:none;cursor:pointer;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;transition:all .2s;}
+#tv .tbtn-o{background:linear-gradient(135deg,#fb923c,#ea580c);color:#fff;box-shadow:0 4px 20px rgba(251,146,60,.3);}
+#tv .tbtn-g{background:var(--tb);color:#eeeef5;border:1px solid rgba(255,255,255,.08);}
+#tv .terr{color:#ef4444;font-size:13px;text-align:center;min-height:20px;}
+#tv .tlbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--ta);font-weight:700;margin-bottom:12px;}
+#tv .topt{background:var(--tb);border:2px solid rgba(255,255,255,.08);border-radius:14px;padding:16px 20px;width:100%;text-align:left;font-size:15px;color:#eeeef5;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .15s;margin-bottom:8px;}
+#tv .topt:hover:not(:disabled){border-color:var(--ta);background:rgba(251,146,60,.07);}
+#tv .topt.correct{border-color:#22c55e;background:rgba(34,197,94,.1);color:#22c55e;}
+#tv .topt.wrong{border-color:#ef4444;background:rgba(239,68,68,.1);color:#ef4444;}
+#tv .topt:disabled{cursor:default;}
+#tv .tprow{display:flex;align-items:center;gap:10px;background:var(--tb);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:11px 14px;}
+.tsc{display:none;position:absolute;inset:0;overflow-y:auto;padding:24px 16px 80px;flex-direction:column;align-items:center;}
+.tsc.on{display:flex;}
+</style>
+<div id="ts-home" class="tsc on">
+  <div style="margin:36px 0 8px;width:100%;max-width:500px;"><div class="thdr">TRIVIA BATTLE</div><div style="text-align:center;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#62628a;margin-bottom:24px;">Kuis pengetahuan umum · 10 soal · 15 detik/soal</div></div>
+  <div class="tcard">
+    <div class="tlbl">Namamu</div>
+    <input id="t-nm" placeholder="Masukkan nama..." maxlength="14" style="margin-bottom:12px;">
+    <button class="tbtn tbtn-o" onclick="tCreate()" style="margin-bottom:10px;">🚀 Buat Room</button>
+    <div style="display:flex;gap:8px;">
+      <input id="t-jcd" placeholder="Kode room" maxlength="4" style="flex:1;text-transform:uppercase;letter-spacing:4px;font-family:'Bebas Neue',cursive;font-size:20px;text-align:center;" oninput="this.value=this.value.toUpperCase()">
+      <button class="tbtn tbtn-g" style="flex-shrink:0;width:90px;" onclick="tJoin()">Join</button>
+    </div>
+    <div class="terr" id="t-err"></div>
+  </div>
+</div>
+<div id="ts-lobby" class="tsc">
+  <div style="margin:24px 0 8px;width:100%;max-width:500px;"><div class="thdr" style="font-size:36px;">LOBBY</div>
+    <div style="text-align:center;background:rgba(251,146,60,.07);border:1px solid rgba(251,146,60,.2);border-radius:12px;padding:14px;margin:10px 0;">
+      <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#fb923c;font-weight:700;">KODE ROOM</div>
+      <div style="font-family:'Bebas Neue',cursive;font-size:52px;letter-spacing:8px;color:#fb923c;" id="t-rcd">----</div>
+    </div>
+  </div>
+  <div class="tcard" style="max-width:500px;"><div class="tlbl">Pemain <span id="t-cnt" style="background:rgba(251,146,60,.15);border-radius:20px;padding:2px 8px;font-family:'DM Sans';font-size:11px;">0</span></div><div id="t-lplyr" style="display:flex;flex-direction:column;gap:8px;"></div></div>
+  <div style="width:100%;max-width:500px;display:flex;flex-direction:column;gap:10px;">
+    <button class="tbtn tbtn-o" id="t-stbtn" onclick="tStart()" style="display:none;">▶ Mulai Trivia!</button>
+    <div id="t-wait" style="text-align:center;color:#62628a;padding:12px;">Menunggu host mulai...</div>
+    <button class="tbtn tbtn-g" onclick="tLeave()">← Keluar</button>
+    <div class="terr" id="t-lerr"></div>
+  </div>
+</div>
+<div id="ts-game" class="tsc">
+  <div style="width:100%;max-width:500px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <div style="font-size:12px;letter-spacing:2px;color:#62628a;text-transform:uppercase;" id="t-qnum">Soal 1/10</div>
+      <div style="font-size:22px;font-weight:900;font-family:'Syne',sans-serif;color:#fb923c;" id="t-timer">15</div>
+    </div>
+    <div style="height:6px;background:rgba(255,255,255,.07);border-radius:6px;overflow:hidden;margin-bottom:16px;"><div style="height:100%;background:#fb923c;border-radius:6px;transition:width 1s linear;" id="t-pf"></div></div>
+    <div class="tcard" style="margin-bottom:12px;">
+      <div style="font-size:clamp(16px,4vw,22px);font-weight:700;text-align:center;color:#eeeef5;line-height:1.4;margin-bottom:20px;" id="t-qtxt">Memuat pertanyaan...</div>
+      <div id="t-opts"></div>
+    </div>
+    <div class="tcard" id="t-res" style="display:none;">
+      <div class="tlbl">SKOR SEMENTARA</div>
+      <div id="t-gsb" style="display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
+  </div>
+</div>
+<div id="ts-end" class="tsc">
+  <div style="width:100%;max-width:500px;margin-top:20px;text-align:center;">
+    <div style="font-size:64px;">🏆</div>
+    <div style="font-family:'Bebas Neue',cursive;font-size:42px;letter-spacing:3px;color:#fb923c;">GAME SELESAI!</div>
+    <div class="tcard" style="margin-top:16px;text-align:left;"><div class="tlbl">PERINGKAT AKHIR</div><div id="t-final" style="display:flex;flex-direction:column;gap:8px;"></div></div>
+    <button class="tbtn tbtn-g" onclick="tLeave()" style="margin-top:10px;">🚪 Keluar</button>
+  </div>
+</div>
+</div>
+
+<!-- ════ BOMB PARTY VIEW ════ -->
+<div id="bv" class="gview" style="background:#0d0000;overflow-y:auto;font-family:'DM Sans',sans-serif;">
+<style>
+#bv{--ba:#ef4444;}
+#bv .bcard{background:#150a0a;border:1px solid rgba(239,68,68,.15);border-radius:18px;padding:20px;margin-bottom:14px;width:100%;max-width:500px;}
+#bv .bhdr{font-family:'Bebas Neue',cursive;font-size:clamp(36px,11vw,62px);background:linear-gradient(135deg,#fff,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-align:center;letter-spacing:3px;}
+#bv input{width:100%;background:#1a0505;border:1px solid rgba(239,68,68,.2);border-radius:12px;padding:13px 16px;color:#eeeef5;font-size:15px;font-family:'DM Sans',sans-serif;outline:none;}
+#bv input:focus{border-color:var(--ba);}
+#bv .bbtn{display:flex;align-items:center;justify-content:center;width:100%;padding:14px;border-radius:12px;border:none;cursor:pointer;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;transition:all .2s;}
+#bv .bbtn-r{background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff;box-shadow:0 4px 20px rgba(239,68,68,.3);}
+#bv .bbtn-g{background:#1a0505;color:#eeeef5;border:1px solid rgba(239,68,68,.2);}
+#bv .berr{color:#ef4444;font-size:13px;text-align:center;min-height:20px;}
+#bv .blbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--ba);font-weight:700;margin-bottom:10px;}
+.bsc{display:none;position:absolute;inset:0;overflow-y:auto;padding:24px 16px 80px;flex-direction:column;align-items:center;}
+.bsc.on{display:flex;}
+</style>
+<div id="bs-home" class="bsc on">
+  <div style="margin:30px 0 8px;width:100%;max-width:500px;"><div class="bhdr">BOMB PARTY</div><div style="text-align:center;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#62628a;margin-bottom:20px;">Ketik kata · Jangan sampai bom meledak!</div></div>
+  <div class="bcard">
+    <div class="blbl">Namamu</div>
+    <input id="b-nm" placeholder="Masukkan nama..." maxlength="14" style="margin-bottom:12px;">
+    <button class="bbtn bbtn-r" onclick="bCreate()" style="margin-bottom:10px;">💣 Buat Room</button>
+    <div style="display:flex;gap:8px;">
+      <input id="b-jcd" placeholder="Kode room" maxlength="4" style="flex:1;text-transform:uppercase;letter-spacing:4px;font-family:'Bebas Neue',cursive;font-size:20px;text-align:center;" oninput="this.value=this.value.toUpperCase()">
+      <button class="bbtn bbtn-g" style="flex-shrink:0;width:90px;" onclick="bJoin()">Join</button>
+    </div>
+    <div class="berr" id="b-err"></div>
+  </div>
+  <div class="bcard" style="max-width:500px;"><div class="blbl">Cara Main</div><div style="font-size:13px;color:#eeeef5;line-height:1.9;">💣 Suku kata muncul di tengah<br>🔤 Ketik kata yang <strong>mengandung</strong> suku kata tersebut<br>❤️❤️❤️ Jika bom meledak, kamu kehilangan 1 nyawa<br>🏆 Pemain terakhir bertahan = MENANG!</div></div>
+</div>
+<div id="bs-lobby" class="bsc">
+  <div style="margin:24px 0 8px;width:100%;max-width:500px;"><div class="bhdr" style="font-size:36px;">RUANG TUNGGU</div>
+    <div style="text-align:center;background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);border-radius:12px;padding:14px;margin:10px 0;">
+      <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#ef4444;font-weight:700;">KODE ROOM</div>
+      <div style="font-family:'Bebas Neue',cursive;font-size:52px;letter-spacing:8px;color:#ef4444;" id="b-rcd">----</div>
+    </div>
+  </div>
+  <div class="bcard" style="max-width:500px;"><div class="blbl">Pemain</div><div id="b-lplyr" style="display:flex;flex-direction:column;gap:8px;"></div></div>
+  <div style="width:100%;max-width:500px;display:flex;flex-direction:column;gap:10px;">
+    <button class="bbtn bbtn-r" id="b-stbtn" onclick="bStart()" style="display:none;">💣 Mulai Game!</button>
+    <div id="b-wait" style="text-align:center;color:#62628a;padding:12px;">Menunggu host mulai...</div>
+    <button class="bbtn bbtn-g" onclick="bLeave()">← Keluar</button>
+    <div class="berr" id="b-lerr"></div>
+  </div>
+</div>
+<div id="bs-game" class="bsc">
+  <div style="width:100%;max-width:500px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div style="font-size:13px;color:#62628a;" id="b-status">Menunggu...</div>
+      <div id="b-lives" style="font-size:18px;letter-spacing:4px;"></div>
+    </div>
+    <div style="text-align:center;margin-bottom:8px;">
+      <div style="font-size:72px;line-height:1;filter:drop-shadow(0 0 16px rgba(239,68,68,.5));" id="b-bomb">💣</div>
+      <div style="font-family:'Bebas Neue',cursive;font-size:clamp(32px,10vw,60px);letter-spacing:8px;background:linear-gradient(135deg,#fff,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;" id="b-syl">??</div>
+      <div style="font-size:13px;color:#62628a;margin-top:4px;">Ketik kata yang mengandung suku kata ini</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;" id="b-gplyr"></div>
+    <div id="b-myinp" style="display:none;margin-bottom:10px;">
+      <div style="border:2px solid #ef4444;border-radius:14px;padding:14px;background:rgba(239,68,68,.05);">
+        <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#ef4444;font-weight:700;margin-bottom:10px;text-align:center;">✍️ GILIRANMU! TIMER: <span id="b-tnum" style="font-size:16px;">12</span>s</div>
+        <div style="display:flex;gap:8px;">
+          <input id="b-winp" placeholder="Ketik kata yang mengandung suku kata..." autocomplete="off" autocorrect="off" spellcheck="false" style="font-size:16px;" onkeydown="if(event.key==='Enter')bSubmit()">
+          <button class="bbtn bbtn-r" style="flex-shrink:0;width:60px;padding:0;" onclick="bSubmit()">➤</button>
+        </div>
+        <div class="berr" id="b-winperr" style="margin-top:6px;"></div>
+      </div>
+    </div>
+    <div id="b-waitinp" style="display:none;text-align:center;padding:16px 0;color:#62628a;">Bom ada di <strong id="b-wname" style="color:#ef4444;"></strong>... (<span id="b-wtimer">12</span>s)</div>
+    <div id="b-lastword" style="text-align:center;font-size:14px;color:#62628a;min-height:24px;"></div>
+  </div>
+</div>
+<div id="bs-end" class="bsc">
+  <div style="width:100%;max-width:500px;text-align:center;margin-top:30px;">
+    <div style="font-size:72px;" id="b-endemo">🏆</div>
+    <div style="font-family:'Bebas Neue',cursive;font-size:42px;letter-spacing:3px;color:#ef4444;margin:8px 0;" id="b-endtit">SELESAI!</div>
+    <div style="color:#62628a;font-size:14px;margin-bottom:20px;" id="b-endsub"></div>
+    <div class="bcard"><div class="blbl">HASIL AKHIR</div><div id="b-endlst" style="display:flex;flex-direction:column;gap:8px;"></div></div>
+    <button class="bbtn bbtn-g" onclick="bLeave()" style="margin-top:10px;">🚪 Keluar</button>
+  </div>
+</div>
+</div>
+
+<!-- ════ KARTU BOHONG VIEW ════ -->
+<div id="blv" class="gview" style="background:#001414;overflow-y:auto;font-family:'DM Sans',sans-serif;">
+<style>
+#blv{--gn:#14b8a6;--g2:#0d1f1f;}
+#blv .glcard{background:var(--g2);border:1px solid rgba(20,184,166,.15);border-radius:18px;padding:20px;margin-bottom:14px;width:100%;max-width:500px;}
+#blv .ghdr{font-family:'Bebas Neue',cursive;font-size:clamp(36px,11vw,62px);background:linear-gradient(135deg,#fff,#14b8a6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-align:center;letter-spacing:3px;}
+#blv input{width:100%;background:var(--g2);border:1px solid rgba(20,184,166,.2);border-radius:12px;padding:13px 16px;color:#eeeef5;font-size:15px;font-family:'DM Sans',sans-serif;outline:none;}
+#blv input:focus{border-color:var(--gn);}
+#blv .gbtn{display:flex;align-items:center;justify-content:center;width:100%;padding:14px;border-radius:12px;border:none;cursor:pointer;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;transition:all .2s;}
+#blv .gbtn-g{background:linear-gradient(135deg,#14b8a6,#0f766e);color:#fff;box-shadow:0 4px 20px rgba(20,184,166,.25);}
+#blv .gbtn-d{background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff;}
+#blv .gbtn-n{background:var(--g2);color:#eeeef5;border:1px solid rgba(20,184,166,.2);}
+#blv .gerr{color:#ef4444;font-size:13px;text-align:center;min-height:20px;}
+#blv .glbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--gn);font-weight:700;margin-bottom:10px;}
+.glsc{display:none;position:absolute;inset:0;overflow-y:auto;padding:24px 16px 80px;flex-direction:column;align-items:center;}
+.glsc.on{display:flex;}
+.gcard-item{width:50px;height:70px;border-radius:8px;background:linear-gradient(135deg,#fff,#f8f8f8);border:2px solid #ccc;display:inline-flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;color:#222;box-shadow:0 2px 8px rgba(0,0,0,.3);cursor:pointer;user-select:none;transition:transform .1s,border-color .1s;}
+.gcard-item:hover{transform:translateY(-4px);}
+.gcard-item.sel{transform:translateY(-8px);border-color:#14b8a6;box-shadow:0 4px 16px rgba(20,184,166,.4);}
+.gcard-item.red{color:#ef4444;}
+</style>
+<div id="gls-home" class="glsc on">
+  <div style="margin:36px 0 8px;width:100%;max-width:500px;"><div class="ghdr">KARTU BOHONG</div><div style="text-align:center;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#62628a;margin-bottom:20px;">Bluff · Challenge · Siapa yang bohong?</div></div>
+  <div class="glcard">
+    <div class="glbl">Namamu</div>
+    <input id="gl-nm" placeholder="Masukkan nama..." maxlength="14" style="margin-bottom:12px;">
+    <button class="gbtn gbtn-g" onclick="glCreate()" style="margin-bottom:10px;">🚀 Buat Room</button>
+    <div style="display:flex;gap:8px;">
+      <input id="gl-jcd" placeholder="Kode room" maxlength="4" style="flex:1;text-transform:uppercase;letter-spacing:4px;font-family:'Bebas Neue',cursive;font-size:20px;text-align:center;" oninput="this.value=this.value.toUpperCase()">
+      <button class="gbtn gbtn-n" style="flex-shrink:0;width:90px;" onclick="glJoin()">Join</button>
+    </div>
+    <div class="gerr" id="gl-err"></div>
+  </div>
+  <div class="glcard" style="max-width:500px;"><div class="glbl">Cara Main</div><div style="font-size:13px;color:#eeeef5;line-height:1.9;">🃏 Semua pemain dapat kartu<br>📣 Saat giliranmu: lempar kartu & claim ranknya<br>🤥 Boleh bohong! Tapi jika ditantang, kartu dibuka<br>❓ Challenge salah = challenger ambil semua tumpukan<br>🏆 Habiskan semua kartu pertama = MENANG!</div></div>
+</div>
+<div id="gls-lobby" class="glsc">
+  <div style="margin:24px 0 8px;width:100%;max-width:500px;"><div class="ghdr" style="font-size:36px;">LOBBY</div>
+    <div style="text-align:center;background:rgba(20,184,166,.06);border:1px solid rgba(20,184,166,.2);border-radius:12px;padding:14px;margin:10px 0;">
+      <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#14b8a6;font-weight:700;">KODE ROOM</div>
+      <div style="font-family:'Bebas Neue',cursive;font-size:52px;letter-spacing:8px;color:#14b8a6;" id="gl-rcd">----</div>
+    </div>
+  </div>
+  <div class="glcard" style="max-width:500px;"><div class="glbl">Pemain</div><div id="gl-lplyr" style="display:flex;flex-direction:column;gap:8px;"></div></div>
+  <div style="width:100%;max-width:500px;display:flex;flex-direction:column;gap:10px;">
+    <button class="gbtn gbtn-g" id="gl-stbtn" onclick="glStart()" style="display:none;">▶ Mulai Game!</button>
+    <div id="gl-wait" style="text-align:center;color:#62628a;padding:12px;">Menunggu host mulai...</div>
+    <button class="gbtn gbtn-n" onclick="glLeave()">← Keluar</button>
+    <div class="gerr" id="gl-lerr"></div>
+  </div>
+</div>
+<div id="gls-game" class="glsc">
+  <div style="width:100%;max-width:500px;">
+    <div style="text-align:center;margin-bottom:10px;">
+      <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#62628a;">RANK YANG HARUS DITARUH</div>
+      <div style="font-family:'Bebas Neue',cursive;font-size:48px;letter-spacing:6px;color:#14b8a6;" id="gl-crank">A</div>
+    </div>
+    <div style="background:rgba(20,184,166,.06);border:2px dashed rgba(20,184,166,.3);border-radius:14px;padding:18px;text-align:center;margin-bottom:12px;">
+      <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#14b8a6;font-weight:700;">TUMPUKAN</div>
+      <div style="font-family:'Bebas Neue',cursive;font-size:32px;color:#eeeef5;" id="gl-pilecnt">0 kartu</div>
+      <div style="font-size:12px;color:#62628a;margin-top:4px;" id="gl-lastplay"></div>
+    </div>
+    <div class="glcard" style="margin-bottom:10px;">
+      <div class="glbl">KARTUMU (<span id="gl-hcnt">0</span> kartu)</div>
+      <div id="gl-hand" style="display:flex;flex-wrap:wrap;gap:6px;min-height:50px;"></div>
+    </div>
+    <div id="gl-myact" style="display:none;flex-direction:column;gap:10px;margin-bottom:12px;">
+      <div style="background:rgba(20,184,166,.06);border:1px solid rgba(20,184,166,.25);border-radius:12px;padding:14px;">
+        <div style="font-size:11px;letter-spacing:2px;color:#14b8a6;font-weight:700;text-transform:uppercase;margin-bottom:10px;">🃏 GILIRANMU!</div>
+        <div style="font-size:13px;color:#62628a;margin-bottom:10px;">Pilih kartu lalu tentukan berapa yang mau diklaim sebagai <strong style="color:#14b8a6;" id="gl-playrank">A</strong></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <span style="font-size:13px;color:#eeeef5;">Klaim:</span>
+          <select id="gl-cnt" style="background:rgba(20,184,166,.1);border:1px solid rgba(20,184,166,.3);border-radius:8px;padding:8px 12px;color:#eeeef5;font-size:14px;flex:1;">
+            <option value="1">1 kartu</option><option value="2">2 kartu</option><option value="3">3 kartu</option><option value="4">4 kartu</option>
+          </select>
+        </div>
+        <button class="gbtn gbtn-g" onclick="glPlay()">▶ Lempar Kartu!</button>
+      </div>
+      <button class="gbtn gbtn-d" id="gl-chalb" onclick="glChallenge()" style="display:none;">❓ BOHONG! Challenge taruhan terakhir</button>
+    </div>
+    <div id="gl-waitact" style="display:none;text-align:center;padding:16px 0;color:#62628a;margin-bottom:12px;">
+      Giliran <strong id="gl-wname" style="color:#14b8a6;"></strong>...
+      <div style="margin-top:12px;"><button class="gbtn gbtn-d" id="gl-chalb2" onclick="glChallenge()" style="display:none;width:auto;padding:10px 20px;">❓ BOHONG!</button></div>
+    </div>
+    <div class="glcard" style="padding:12px 16px;">
+      <div class="glbl" style="margin-bottom:8px;">SEMUA PEMAIN</div>
+      <div id="gl-gplyr" style="display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
+  </div>
+</div>
+<div id="gls-end" class="glsc">
+  <div style="width:100%;max-width:500px;text-align:center;margin-top:30px;">
+    <div style="font-size:72px;">🃏</div>
+    <div style="font-family:'Bebas Neue',cursive;font-size:42px;letter-spacing:3px;color:#14b8a6;margin:8px 0;" id="gl-endtit">SELESAI!</div>
+    <div style="color:#62628a;font-size:14px;margin-bottom:20px;" id="gl-endsub"></div>
+    <button class="gbtn gbtn-n" onclick="glLeave()" style="max-width:500px;">🚪 Keluar</button>
+  </div>
+</div>
+</div>
+
+<script>
+// ════ TRIVIA ════
+let tRoom=null, tMyId=null, tIsHost=false, tTimer=null;
+
+function tSS(id){document.querySelectorAll('.tsc').forEach(e=>{e.style.display='none';e.classList.remove('on');});const el=document.getElementById(id);el.style.display='flex';el.classList.add('on');}
+function tCreate(){
+  const nm=document.getElementById('t-nm').value.trim();
+  if(!nm){document.getElementById('t-err').textContent='Masukkan nama!';return;}
+  initSocket();socket.emit('trivia:create',{name:nm});
+}
+function tJoin(){
+  const nm=document.getElementById('t-nm').value.trim();
+  const code=document.getElementById('t-jcd').value.trim().toUpperCase();
+  if(!nm||!code){document.getElementById('t-err').textContent='Isi nama dan kode!';return;}
+  initSocket();socket.emit('trivia:join',{roomId:code,name:nm});
+}
+function tStart(){socket.emit('trivia:start',{roomId:tRoom});}
+function tLeave(){
+  clearInterval(tTimer);
+  socket&&socket.emit('trivia:leave',{roomId:tRoom});
+  tRoom=null;tSS('ts-home');
+}
+function tRenderPlayers(players,myId){
+  const el=document.getElementById('t-lplyr');if(!el)return;
+  document.getElementById('t-cnt').textContent=players.length;
+  el.innerHTML='';
+  players.forEach(p=>{
+    const row=document.createElement('div');row.className='tprow'+(p.id===myId?' me':'');
+    row.innerHTML=`<div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#fb923c,#ea580c);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;">${p.name[0].toUpperCase()}</div><div style="flex:1;font-size:14px;font-weight:600;color:#eeeef5;">${p.name}</div><div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:#fb923c;">${p.score}</div>`;
+    el.appendChild(row);
+  });
+}
+function tStartQuestion(d){
+  tSS('ts-game');
+  document.getElementById('t-res').style.display='none';
+  document.getElementById('t-qnum').textContent=`Soal ${d.idx+1}/${d.total}`;
+  document.getElementById('t-qtxt').textContent=d.question;
+  const opts=document.getElementById('t-opts');opts.innerHTML='';
+  d.opts.forEach(opt=>{
+    const btn=document.createElement('button');btn.className='topt';btn.textContent=opt;
+    btn.onclick=()=>{
+      opts.querySelectorAll('.topt').forEach(b=>b.disabled=true);
+      socket.emit('trivia:answer',{roomId:tRoom,answer:opt});
+      btn.style.opacity='.6';
+    };
+    opts.appendChild(btn);
+  });
+  let t=d.timeLimit,total=d.timeLimit;
+  clearInterval(tTimer);
+  document.getElementById('t-timer').textContent=t;
+  document.getElementById('t-pf').style.width='100%';
+  tTimer=setInterval(()=>{
+    t--;
+    document.getElementById('t-timer').textContent=Math.max(0,t);
+    document.getElementById('t-pf').style.width=(t/total*100)+'%';
+    if(t<=0)clearInterval(tTimer);
+  },1000);
+}
+function tReveal(d){
+  clearInterval(tTimer);
+  const opts=document.querySelectorAll('#t-opts .topt');
+  opts.forEach(btn=>{
+    btn.disabled=true;
+    if(btn.textContent===d.correct){btn.classList.add('correct');}
+    else if(btn.style.opacity='.6'){btn.classList.add('wrong');}
+  });
+  const res=document.getElementById('t-res');
+  res.style.display='block';
+  const sb=document.getElementById('t-gsb');sb.innerHTML='';
+  const sorted=[...d.players].sort((a,b)=>b.score-a.score);
+  sorted.forEach((p,i)=>{
+    const row=document.createElement('div');row.className='tprow'+(p.id===tMyId?' me':'');
+    row.innerHTML=`<span style="font-size:16px;">${['🥇','🥈','🥉'][i]||'#'+(i+1)}</span><span style="flex:1;font-size:14px;font-weight:600;color:#eeeef5;">${p.name}</span><span style="font-family:'Syne',sans-serif;font-size:16px;color:#fb923c;">${p.score}</span>`;
+    sb.appendChild(row);
+  });
+}
+function tShowEnd(players){
+  clearInterval(tTimer);tSS('ts-end');
+  const el=document.getElementById('t-final');el.innerHTML='';
+  players.forEach((p,i)=>{
+    const row=document.createElement('div');row.className='tprow'+(p.id===tMyId?' me':'');
+    row.innerHTML=`<span style="font-size:20px;">${['🥇','🥈','🥉'][i]||'#'+(i+1)}</span><span style="flex:1;font-size:15px;font-weight:700;color:#eeeef5;">${p.name}</span><span style="font-family:'Syne',sans-serif;font-size:18px;color:#fb923c;">${p.score} pts</span>`;
+    el.appendChild(row);
+  });
+}
+
+// Register trivia socket events when socket is inited
+function setupTriviaEvents(){
+  socket.on('trivia:created',(d)=>{
+    tRoom=d.roomId;tMyId=socket.id;tIsHost=true;
+    document.getElementById('t-rcd').textContent=d.roomId;
+    document.getElementById('t-stbtn').style.display='block';
+    document.getElementById('t-wait').style.display='none';
+    document.getElementById('t-err').textContent='';
+    tSS('ts-lobby');
+  });
+  socket.on('trivia:joined',(d)=>{
+    tRoom=d.roomId;tMyId=socket.id;tIsHost=(d.hostId===socket.id);
+    document.getElementById('t-rcd').textContent=d.roomId;
+    document.getElementById('t-stbtn').style.display=tIsHost?'block':'none';
+    document.getElementById('t-wait').style.display=tIsHost?'none':'block';
+    document.getElementById('t-err').textContent='';
+    tSS('ts-lobby');
+  });
+  socket.on('trivia:players',(d)=>{tRenderPlayers(d,tMyId);});
+  socket.on('trivia:error',(d)=>{const msg=typeof d==='string'?d:d.msg||'Error';['t-err','t-lerr'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=msg;});});
+  socket.on('trivia:started',()=>{});
+  socket.on('trivia:question',(d)=>{tStartQuestion(d);});
+  socket.on('trivia:answer_result',(d)=>{});
+  socket.on('trivia:reveal',(d)=>{tReveal(d);});
+  socket.on('trivia:end',(d)=>{tShowEnd(d.players);});
+}
+
+// ════ BOMB PARTY ════
+let bRoom=null, bMyId=null, bIsHost=false, bTimerInt=null, bMyLives=3;
+
+function bSS(id){document.querySelectorAll('.bsc').forEach(e=>{e.style.display='none';e.classList.remove('on');});const el=document.getElementById(id);el.style.display='flex';el.classList.add('on');}
+function bCreate(){
+  const nm=document.getElementById('b-nm').value.trim();
+  if(!nm){document.getElementById('b-err').textContent='Masukkan nama!';return;}
+  initSocket();socket.emit('bomb:create',{name:nm});
+}
+function bJoin(){
+  const nm=document.getElementById('b-nm').value.trim();
+  const code=document.getElementById('b-jcd').value.trim().toUpperCase();
+  if(!nm||!code){document.getElementById('b-err').textContent='Isi nama dan kode!';return;}
+  initSocket();socket.emit('bomb:join',{roomId:code,name:nm});
+}
+function bStart(){socket.emit('bomb:start',{roomId:bRoom});}
+function bLeave(){
+  clearInterval(bTimerInt);
+  socket&&socket.emit('bomb:leave',{roomId:bRoom});
+  bRoom=null;bSS('bs-home');
+}
+function bSubmit(){
+  const inp=document.getElementById('b-winp');const word=inp.value.trim();
+  if(!word)return;
+  socket.emit('bomb:word',{roomId:bRoom,word});
+  inp.value='';
+}
+function bRenderPlayers(players){
+  const el=document.getElementById('b-gplyr');if(!el)return;
+  el.innerHTML='';
+  players.forEach(p=>{
+    const tag=document.createElement('div');
+    tag.style.cssText=`background:${p.alive?'rgba(239,68,68,.08)':'rgba(255,255,255,.03)'};border:1px solid ${p.alive?'rgba(239,68,68,.25)':'rgba(255,255,255,.06)'};border-radius:10px;padding:6px 10px;font-size:13px;font-weight:700;color:${p.alive?'#eeeef5':'#444'};`;
+    tag.innerHTML=`${'❤️'.repeat(p.lives)||'💀'} ${p.name}`;
+    el.appendChild(tag);
+  });
+  // also update lobby list
+  const ll=document.getElementById('b-lplyr');if(ll){ll.innerHTML='';players.forEach(p=>{const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:10px;background:#1a0505;border:1px solid rgba(239,68,68,.12);border-radius:12px;padding:11px 14px;';row.innerHTML=`<span style="font-size:18px;">${'❤️'.repeat(p.lives)}</span><span style="flex:1;font-size:14px;font-weight:600;color:#eeeef5;">${p.name}</span>`;ll.appendChild(row);});}
+}
+function bStartTimer(secs, pid){
+  clearInterval(bTimerInt);
+  let t=secs;
+  document.getElementById('b-tnum').textContent=t;
+  document.getElementById('b-wtimer').textContent=t;
+  bTimerInt=setInterval(()=>{
+    t--;
+    const tn=document.getElementById('b-tnum');if(tn)tn.textContent=Math.max(0,t);
+    const wt=document.getElementById('b-wtimer');if(wt)wt.textContent=Math.max(0,t);
+    if(t<=0)clearInterval(bTimerInt);
+  },1000);
+}
+
+function setupBombEvents(){
+  socket.on('bomb:created',(d)=>{
+    bRoom=d.roomId;bMyId=socket.id;bIsHost=true;
+    document.getElementById('b-rcd').textContent=d.roomId;
+    document.getElementById('b-stbtn').style.display='block';
+    document.getElementById('b-wait').style.display='none';
+    document.getElementById('b-err').textContent='';
+    bSS('bs-lobby');
+  });
+  socket.on('bomb:joined',(d)=>{
+    bRoom=d.roomId;bMyId=socket.id;bIsHost=(d.hostId===socket.id);
+    document.getElementById('b-rcd').textContent=d.roomId;
+    document.getElementById('b-stbtn').style.display=bIsHost?'block':'none';
+    document.getElementById('b-wait').style.display=bIsHost?'none':'block';
+    document.getElementById('b-err').textContent='';
+    bSS('bs-lobby');
+  });
+  socket.on('bomb:players',(d)=>{bRenderPlayers(d);});
+  socket.on('bomb:error',(d)=>{const msg=typeof d==='string'?d:d.msg||'Error';['b-err','b-lerr'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=msg;});});
+  socket.on('bomb:started',()=>{bSS('bs-game');document.getElementById('b-lastword').textContent='';});
+  socket.on('bomb:turn',(d)=>{
+    bRenderPlayers(d.players);
+    const isMe=d.playerId===bMyId;
+    document.getElementById('b-syl').textContent=d.syllable;
+    document.getElementById('b-bomb').textContent='💣';
+    document.getElementById('b-status').textContent=isMe?'✍️ GILIRANMU!':d.playerName+' sedang mengetik...';
+    document.getElementById('b-myinp').style.display=isMe?'block':'none';
+    document.getElementById('b-waitinp').style.display=isMe?'none':'block';
+    if(!isMe)document.getElementById('b-wname').textContent=d.playerName;
+    if(isMe){
+      document.getElementById('b-winp').focus();
+      document.getElementById('b-winperr').textContent='';
+    }
+    const me=d.players.find(p=>p.id===bMyId);
+    if(me)document.getElementById('b-lives').textContent='❤️'.repeat(me.lives)+'🖤'.repeat(Math.max(0,3-me.lives));
+    bStartTimer(d.timeLimit, d.playerId);
+  });
+  socket.on('bomb:valid',(d)=>{
+    clearInterval(bTimerInt);
+    document.getElementById('b-lastword').textContent='✅ '+d.playerName+': "'+d.word+'"';
+    bRenderPlayers(d.players);
+    document.getElementById('b-bomb').textContent='✅';
+  });
+  socket.on('bomb:explode',(d)=>{
+    clearInterval(bTimerInt);
+    document.getElementById('b-bomb').textContent='💥';
+    document.getElementById('b-lastword').textContent='💥 BOOM! '+d.players.find(p=>p.id===d.playerId)?.name+' kehilangan nyawa!';
+    bRenderPlayers(d.players);
+  });
+  socket.on('bomb:invalid',(d)=>{document.getElementById('b-winperr').textContent=d.reason;});
+  socket.on('bomb:end',(d)=>{
+    clearInterval(bTimerInt);bSS('bs-end');
+    const isWinner=d.winner&&d.winner.id===bMyId;
+    document.getElementById('b-endemo').textContent=isWinner?'🏆':'💣';
+    document.getElementById('b-endtit').textContent=isWinner?'KAMU MENANG!':d.winner?d.winner.name+' MENANG!':'GAME SELESAI!';
+    document.getElementById('b-endsub').textContent=isWinner?'Kamu bertahan dari semua bom!':'Lebih beruntung lain kali!';
+    const lst=document.getElementById('b-endlst');lst.innerHTML='';
+    d.players.sort((a,b)=>b.lives-a.lives).forEach((p,i)=>{
+      const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:10px;background:#1a0505;border:1px solid rgba(239,68,68,.15);border-radius:12px;padding:11px 14px;';
+      row.innerHTML=`<span style="font-size:16px;">${['🥇','🥈','🥉'][i]||'💀'}</span><span style="flex:1;font-size:14px;font-weight:700;color:#eeeef5;">${p.name}</span><span style="font-size:16px;">${'❤️'.repeat(p.lives)||'💀'}</span>`;
+      lst.appendChild(row);
+    });
+  });
+}
+
+// ════ KARTU BOHONG ════
+let glRoom=null, glMyId=null, glIsHost=false, glMyHand=[], glSelCards=[], glCanChallenge=false, glCurrentRank='A', glIsTurn=false;
+
+function glSS(id){document.querySelectorAll('.glsc').forEach(e=>{e.style.display='none';e.classList.remove('on');});const el=document.getElementById(id);el.style.display='flex';el.classList.add('on');}
+function glCreate(){
+  const nm=document.getElementById('gl-nm').value.trim();
+  if(!nm){document.getElementById('gl-err').textContent='Masukkan nama!';return;}
+  initSocket();socket.emit('bluff:create',{name:nm});
+}
+function glJoin(){
+  const nm=document.getElementById('gl-nm').value.trim();
+  const code=document.getElementById('gl-jcd').value.trim().toUpperCase();
+  if(!nm||!code){document.getElementById('gl-err').textContent='Isi nama dan kode!';return;}
+  initSocket();socket.emit('bluff:join',{roomId:code,name:nm});
+}
+function glStart(){socket.emit('bluff:start',{roomId:glRoom});}
+function glLeave(){socket&&socket.emit('bluff:leave',{roomId:glRoom});glRoom=null;glSS('gls-home');}
+function glRenderHand(){
+  const el=document.getElementById('gl-hand');el.innerHTML='';
+  glSelCards=[];
+  document.getElementById('gl-hcnt').textContent=glMyHand.length;
+  const redRanks=['J','Q','K'];
+  glMyHand.forEach((card,i)=>{
+    const c=document.createElement('div');c.className='gcard-item'+(redRanks.includes(card)?' red':'');
+    c.textContent=card;c.dataset.idx=i;
+    c.onclick=()=>{
+      if(!glIsTurn)return;
+      c.classList.toggle('sel');
+      const idx=glSelCards.indexOf(i);
+      if(idx>=0)glSelCards.splice(idx,1);else glSelCards.push(i);
+    };
+    el.appendChild(c);
+  });
+}
+function glPlay(){
+  if(!glIsTurn){return;}
+  const count=parseInt(document.getElementById('gl-cnt').value);
+  if(glMyHand.length===0){return;}
+  socket.emit('bluff:play',{roomId:glRoom,count,claimedRank:glCurrentRank});
+}
+function glChallenge(){
+  if(!glCanChallenge)return;
+  socket.emit('bluff:challenge',{roomId:glRoom});
+}
+function glRenderPlayers(players){
+  ['gl-gplyr'].forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;el.innerHTML='';
+    players.forEach(p=>{
+      const row=document.createElement('div');
+      row.style.cssText=`display:flex;align-items:center;gap:8px;background:${p.out?'rgba(255,255,255,.02)':'rgba(20,184,166,.05)'};border:1px solid ${p.out?'rgba(255,255,255,.05)':'rgba(20,184,166,.12)'};border-radius:10px;padding:8px 12px;opacity:${p.out?'.4':'1'};`;
+      row.innerHTML=`<span style="font-size:14px;">${p.out?'❌':'🃏'}</span><span style="flex:1;font-size:14px;font-weight:600;color:#eeeef5;">${p.name}</span><span style="font-size:13px;color:#14b8a6;">${p.cardCount} kartu</span>`;
+      el.appendChild(row);
+    });
+  });
+  // lobby list
+  const ll=document.getElementById('gl-lplyr');if(ll){ll.innerHTML='';players.forEach(p=>{const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:10px;background:var(--g2);border:1px solid rgba(20,184,166,.12);border-radius:12px;padding:11px 14px;';row.innerHTML=`<div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#14b8a6,#0f766e);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;">${p.name[0].toUpperCase()}</div><span style="flex:1;font-size:14px;font-weight:600;color:#eeeef5;">${p.name}</span>`;ll.appendChild(row);});}
+}
+
+function setupBluffEvents(){
+  socket.on('bluff:created',(d)=>{
+    glRoom=d.roomId;glMyId=socket.id;glIsHost=true;
+    document.getElementById('gl-rcd').textContent=d.roomId;
+    document.getElementById('gl-stbtn').style.display='block';
+    document.getElementById('gl-wait').style.display='none';
+    document.getElementById('gl-err').textContent='';
+    glSS('gls-lobby');
+  });
+  socket.on('bluff:joined',(d)=>{
+    glRoom=d.roomId;glMyId=socket.id;glIsHost=(d.hostId===socket.id);
+    document.getElementById('gl-rcd').textContent=d.roomId;
+    document.getElementById('gl-stbtn').style.display=glIsHost?'block':'none';
+    document.getElementById('gl-wait').style.display=glIsHost?'none':'block';
+    document.getElementById('gl-err').textContent='';
+    glSS('gls-lobby');
+  });
+  socket.on('bluff:players',(d)=>{glRenderPlayers(d);});
+  socket.on('bluff:error',(d)=>{const msg=typeof d==='string'?d:d.msg||'Error';['gl-err','gl-lerr'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=msg;});});
+  socket.on('bluff:started',()=>{
+    glSS('gls-game');
+    document.getElementById('gl-pilecnt').textContent='0 kartu';
+    document.getElementById('gl-lastplay').textContent='';
+  });
+  socket.on('bluff:hand',(d)=>{
+    glMyHand=d.hand;
+    glRenderHand();
+  });
+  socket.on('bluff:turn',(d)=>{
+    glCurrentRank=d.currentRank;glCanChallenge=!!d.pileCount;
+    glIsTurn=(d.playerId===glMyId);
+    document.getElementById('gl-crank').textContent=d.currentRank;
+    document.getElementById('gl-playrank').textContent=d.currentRank;
+    document.getElementById('gl-pilecnt').textContent=d.pileCount+' kartu';
+    glRenderPlayers(d.players);
+    // show/hide challenge buttons
+    ['gl-chalb','gl-chalb2'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=d.pileCount>0?'block':'none';});
+    if(glIsTurn){
+      document.getElementById('gl-myact').style.display='flex';
+      document.getElementById('gl-waitact').style.display='none';
+    } else {
+      document.getElementById('gl-myact').style.display='none';
+      document.getElementById('gl-waitact').style.display='block';
+      document.getElementById('gl-wname').textContent=d.playerName;
+    }
+  });
+  socket.on('bluff:played',(d)=>{
+    glCanChallenge=true;
+    document.getElementById('gl-pilecnt').textContent=d.pileCount+' kartu';
+    document.getElementById('gl-lastplay').textContent=d.playerName+' klaim: '+d.count+' buah '+d.claimedRank;
+    glRenderPlayers(d.players);
+    ['gl-chalb','gl-chalb2'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='block';});
+  });
+  socket.on('bluff:challenge_result',(d)=>{
+    const msg=d.wasBluff
+      ? `😱 BOHONG! ${d.playerName} ketahuan! ${d.actualCards.join(',')} bukan ${d.claimedRank}. ${d.loserName} ambil semua kartu!`
+      : `😎 Jujur! Kartu asli: ${d.actualCards.join(',')}. ${d.loserName} harus ambil semua kartu!`;
+    // Show toast
+    const toast=document.createElement('div');
+    toast.style.cssText='position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#0d1f1f;color:#eeeef5;padding:12px 22px;border-radius:10px;font-weight:700;font-size:13px;border:1px solid rgba(20,184,166,.3);z-index:999;max-width:340px;text-align:center;';
+    toast.textContent=msg;document.body.appendChild(toast);setTimeout(()=>toast.remove(),4000);
+    document.getElementById('gl-pilecnt').textContent='0 kartu';
+    document.getElementById('gl-lastplay').textContent='Tumpukan dikosongkan';
+    glRenderPlayers(d.players);
+    ['gl-chalb','gl-chalb2'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+    // Update hand if we received penalty cards
+  });
+  socket.on('bluff:out',(d)=>{
+    const toast=document.createElement('div');
+    toast.style.cssText='position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#0d1f1f;color:#14b8a6;padding:12px 22px;border-radius:10px;font-weight:700;font-size:13px;border:1px solid rgba(20,184,166,.3);z-index:999;';
+    toast.textContent='🎉 '+d.playerName+' habis kartunya!';document.body.appendChild(toast);setTimeout(()=>toast.remove(),3000);
+  });
+  socket.on('bluff:end',(d)=>{
+    glSS('gls-end');
+    const isWin=d.winner&&d.winner.id===glMyId;
+    document.getElementById('gl-endtit').textContent=isWin?'KAMU MENANG!':d.winner?d.winner.name+' MENANG!':'SELESAI!';
+    document.getElementById('gl-endsub').textContent=isWin?'Kamu berhasil menghabiskan semua kartu!':'Lebih beruntung lain kali!';
+  });
+}
+
+</script>
+
 </body>
 </html>
