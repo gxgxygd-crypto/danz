@@ -518,12 +518,397 @@ io.on('connection', (socket) => {
       }
     }
   });
+
+  // ── TRIVIA ─────────────────────────────────────────
+  socket.on('trivia:create', ({name}) => {
+    const roomId = makeTriviaId();
+    const qs = [...TRIVIA_Q].sort(() => Math.random() - 0.5).slice(0, 10);
+    triviaRooms[roomId] = {
+      hostId: socket.id, status: 'lobby', qIdx: 0, questions: qs,
+      players: {[socket.id]: {id: socket.id, name, score: 0, answered: false}},
+    };
+    socket.join(roomId);
+    socket.emit('trivia:created', {roomId});
+    io.to(roomId).emit('trivia:players', triviaPlayerList(triviaRooms[roomId]));
+  });
+  socket.on('trivia:join', ({roomId, name}) => {
+    const room = triviaRooms[roomId];
+    if (!room) { socket.emit('trivia:error', 'Room tidak ditemukan!'); return; }
+    if (room.status !== 'lobby') { socket.emit('trivia:error', 'Game sudah dimulai!'); return; }
+    room.players[socket.id] = {id: socket.id, name, score: 0, answered: false};
+    socket.join(roomId);
+    socket.emit('trivia:joined', {roomId, hostId: room.hostId});
+    io.to(roomId).emit('trivia:players', triviaPlayerList(room));
+  });
+  socket.on('trivia:start', ({roomId}) => {
+    const room = triviaRooms[roomId];
+    if (!room || room.hostId !== socket.id) return;
+    room.status = 'playing'; room.qIdx = 0;
+    room.questions = [...TRIVIA_Q].sort(() => Math.random() - 0.5).slice(0, 10);
+    Object.values(room.players).forEach(p => { p.score = 0; });
+    io.to(roomId).emit('trivia:started');
+    startTriviaRound(roomId);
+  });
+  socket.on('trivia:answer', ({roomId, answer}) => {
+    const room = triviaRooms[roomId];
+    if (!room || room.status !== 'playing') return;
+    const p = room.players[socket.id];
+    if (!p || p.answered) return;
+    p.answered = true;
+    const q = room.questions[room.qIdx];
+    const correct = answer === q.a;
+    if (correct) {
+      const ms = Date.now() - room.roundStart;
+      const bonus = Math.max(0, Math.floor((15000 - ms) / 200));
+      p.score += 100 + bonus;
+    }
+    socket.emit('trivia:answer_result', {correct, score: p.score});
+    io.to(roomId).emit('trivia:players', triviaPlayerList(room));
+    room.answeredCount = (room.answeredCount || 0) + 1;
+    if (room.answeredCount >= Object.keys(room.players).length) {
+      clearTimeout(room.timer);
+      io.to(roomId).emit('trivia:reveal', {correct: q.a, players: triviaPlayerList(room)});
+      room.qIdx++;
+      setTimeout(() => startTriviaRound(roomId), 3500);
+    }
+  });
+  socket.on('trivia:leave', ({roomId}) => {
+    const room = triviaRooms[roomId];
+    if (room) { delete room.players[socket.id]; io.to(roomId).emit('trivia:players', triviaPlayerList(room)); }
+    socket.leave(roomId);
+  });
+
+  // ── BOMB PARTY ─────────────────────────────────────
+  socket.on('bomb:create', ({name}) => {
+    const roomId = makeBombId();
+    bombRooms[roomId] = {
+      hostId: socket.id, status: 'lobby', round: 1, turnIdx: -1,
+      playerOrder: [socket.id], currentSyllable: '', bombTimer: null,
+      players: {[socket.id]: {id: socket.id, name, lives: 3, lastWord: ''}},
+    };
+    socket.join(roomId);
+    socket.emit('bomb:created', {roomId});
+    io.to(roomId).emit('bomb:players', bombPlayerList(bombRooms[roomId]));
+  });
+  socket.on('bomb:join', ({roomId, name}) => {
+    const room = bombRooms[roomId];
+    if (!room) { socket.emit('bomb:error', 'Room tidak ditemukan!'); return; }
+    if (room.status !== 'lobby') { socket.emit('bomb:error', 'Game sudah dimulai!'); return; }
+    room.players[socket.id] = {id: socket.id, name, lives: 3, lastWord: ''};
+    room.playerOrder.push(socket.id);
+    socket.join(roomId);
+    socket.emit('bomb:joined', {roomId, hostId: room.hostId});
+    io.to(roomId).emit('bomb:players', bombPlayerList(room));
+  });
+  socket.on('bomb:start', ({roomId}) => {
+    const room = bombRooms[roomId];
+    if (!room || room.hostId !== socket.id) return;
+    if (room.playerOrder.length < 2) { socket.emit('bomb:error', 'Butuh minimal 2 pemain!'); return; }
+    room.status = 'playing'; room.turnIdx = -1; room.round = 1;
+    Object.values(room.players).forEach(p => { p.lives = 3; p.lastWord = ''; });
+    io.to(roomId).emit('bomb:started');
+    setTimeout(() => nextBombTurn(roomId), 1000);
+  });
+  socket.on('bomb:word', ({roomId, word}) => {
+    const room = bombRooms[roomId];
+    if (!room) return;
+    const curPid = room.playerOrder[room.turnIdx];
+    if (curPid !== socket.id) return;
+    const syllable = room.currentSyllable;
+    const valid = word.toUpperCase().includes(syllable) && word.length >= 3;
+    if (valid) {
+      clearTimeout(room.bombTimer);
+      room.players[socket.id].lastWord = word;
+      io.to(roomId).emit('bomb:valid', {playerId: socket.id, word, players: bombPlayerList(room)});
+      setTimeout(() => nextBombTurn(roomId), 1000);
+    } else {
+      socket.emit('bomb:invalid', {word, reason: !word.toUpperCase().includes(syllable) ? 'Kata harus mengandung "'+syllable+'"' : 'Kata terlalu pendek!'});
+    }
+  });
+  socket.on('bomb:leave', ({roomId}) => {
+    const room = bombRooms[roomId];
+    if (room) {
+      delete room.players[socket.id];
+      room.playerOrder = room.playerOrder.filter(id => id !== socket.id);
+      io.to(roomId).emit('bomb:players', bombPlayerList(room));
+    }
+    socket.leave(roomId);
+  });
+
+  // ── KARTU BOHONG ───────────────────────────────────
+  socket.on('bluff:create', ({name}) => {
+    const roomId = makeBluffId();
+    bluffRooms[roomId] = {
+      hostId: socket.id, status: 'lobby', pile: [], lastPlay: null,
+      currentRank: null, turnIdx: 0, playerOrder: [socket.id],
+      players: {[socket.id]: {id: socket.id, name, hand: [], out: false}},
+    };
+    socket.join(roomId);
+    socket.emit('bluff:created', {roomId});
+    io.to(roomId).emit('bluff:players', bluffPlayerList(bluffRooms[roomId]));
+  });
+  socket.on('bluff:join', ({roomId, name}) => {
+    const room = bluffRooms[roomId];
+    if (!room) { socket.emit('bluff:error', 'Room tidak ditemukan!'); return; }
+    if (room.status !== 'lobby') { socket.emit('bluff:error', 'Game sudah dimulai!'); return; }
+    room.players[socket.id] = {id: socket.id, name, hand: [], out: false};
+    room.playerOrder.push(socket.id);
+    socket.join(roomId);
+    socket.emit('bluff:joined', {roomId, hostId: room.hostId});
+    io.to(roomId).emit('bluff:players', bluffPlayerList(room));
+  });
+  socket.on('bluff:start', ({roomId}) => {
+    const room = bluffRooms[roomId];
+    if (!room || room.hostId !== socket.id) return;
+    if (room.playerOrder.length < 2) { socket.emit('bluff:error', 'Butuh minimal 2 pemain!'); return; }
+    room.status = 'playing'; room.turnIdx = 0; room.pile = []; room.lastPlay = null;
+    room.currentRank = RANKS[0]; // start with Ace
+    dealBluff(room);
+    room.playerOrder.forEach(pid => {
+      const p = room.players[pid];
+      io.to(pid).emit('bluff:hand', {hand: p.hand});
+    });
+    io.to(roomId).emit('bluff:started');
+    const firstPid = room.playerOrder[0];
+    io.to(roomId).emit('bluff:turn', {
+      playerId: firstPid, playerName: room.players[firstPid].name,
+      currentRank: room.currentRank, pileCount: room.pile.length,
+      players: bluffPlayerList(room)
+    });
+  });
+  socket.on('bluff:play', ({roomId, count, claimedRank}) => {
+    const room = bluffRooms[roomId];
+    if (!room) return;
+    const curPid = room.playerOrder[room.turnIdx];
+    if (curPid !== socket.id) return;
+    const p = room.players[socket.id];
+    // Remove 'count' cards from hand (actual cards don't matter for bluffing)
+    const played = p.hand.splice(0, Math.min(count, p.hand.length));
+    room.pile.push(...played);
+    room.lastPlay = {playerId: socket.id, playerName: p.name, count, claimedRank, actualCards: played};
+    if (p.hand.length === 0) {
+      p.out = true;
+      io.to(roomId).emit('bluff:out', {playerId: socket.id, playerName: p.name});
+      const remaining = room.playerOrder.filter(id => !room.players[id].out);
+      if (remaining.length <= 1) {
+        io.to(roomId).emit('bluff:end', {winner: room.players[remaining[0]], players: bluffPlayerList(room)});
+        room.status = 'ended'; return;
+      }
+    }
+    const nextPid = nextBluffTurn(room);
+    const rankIdx = (RANKS.indexOf(room.currentRank) + 1) % RANKS.length;
+    room.currentRank = RANKS[rankIdx];
+    io.to(roomId).emit('bluff:played', {
+      playerId: socket.id, playerName: p.name, count, claimedRank,
+      pileCount: room.pile.length, players: bluffPlayerList(room)
+    });
+    if (nextPid) {
+      io.to(roomId).emit('bluff:turn', {
+        playerId: nextPid, playerName: room.players[nextPid].name,
+        currentRank: room.currentRank, pileCount: room.pile.length,
+        players: bluffPlayerList(room)
+      });
+    }
+  });
+  socket.on('bluff:challenge', ({roomId}) => {
+    const room = bluffRooms[roomId];
+    if (!room || !room.lastPlay) return;
+    const lp = room.lastPlay;
+    const actualCorrect = lp.actualCards.every(c => c === lp.claimedRank);
+    const loser = actualCorrect ? socket.id : lp.playerId; // challenger loses if cards correct
+    room.players[loser].hand.push(...room.pile);
+    io.to(loser).emit('bluff:hand', {hand: room.players[loser].hand});
+    io.to(roomId).emit('bluff:challenge_result', {
+      challengerId: socket.id, challengerName: room.players[socket.id].name,
+      playerId: lp.playerId, playerName: lp.playerName,
+      actualCards: lp.actualCards, claimedRank: lp.claimedRank,
+      wasBluff: !actualCorrect, loserId: loser,
+      loserName: room.players[loser].name,
+      players: bluffPlayerList(room)
+    });
+    room.pile = []; room.lastPlay = null;
+    const nextPid = room.playerOrder[room.turnIdx % room.playerOrder.length];
+    io.to(roomId).emit('bluff:turn', {
+      playerId: nextPid, playerName: room.players[nextPid].name,
+      currentRank: room.currentRank, pileCount: 0,
+      players: bluffPlayerList(room)
+    });
+  });
+  socket.on('bluff:leave', ({roomId}) => {
+    const room = bluffRooms[roomId];
+    if (room) {
+      delete room.players[socket.id];
+      room.playerOrder = room.playerOrder.filter(id => id !== socket.id);
+      io.to(roomId).emit('bluff:players', bluffPlayerList(room));
+    }
+    socket.leave(roomId);
+  });
+
 });
 
 function getRacePlayerList(room) {
   return Object.entries(room.players)
     .map(([id, p]) => ({ id, ...p }))
     .sort((a, b) => { if (a.won && !b.won) return -1; if (!a.won && b.won) return 1; return (a.guesses||99)-(b.guesses||99); });
+}
+
+
+// ══════════════════════════════════════════════════════
+// TRIVIA BATTLE
+// ══════════════════════════════════════════════════════
+const TRIVIA_Q = [
+  {q:"Ibu kota Indonesia?",a:"Jakarta",opts:["Jakarta","Surabaya","Bandung","Medan"]},
+  {q:"Siapa presiden pertama Indonesia?",a:"Soekarno",opts:["Soeharto","Soekarno","Habibie","Wahid"]},
+  {q:"Planet terbesar di tata surya?",a:"Jupiter",opts:["Saturn","Uranus","Jupiter","Neptunus"]},
+  {q:"Berapa jumlah sisi segitiga?",a:"3",opts:["4","3","5","6"]},
+  {q:"Apa bahasa resmi Brazil?",a:"Portugis",opts:["Spanyol","Portugis","Inggris","Perancis"]},
+  {q:"Gunung tertinggi di dunia?",a:"Everest",opts:["K2","Everest","Kilimanjaro","Elbrus"]},
+  {q:"Tahun berapa Indonesia merdeka?",a:"1945",opts:["1942","1945","1949","1950"]},
+  {q:"Hewan mamalia terbesar?",a:"Paus Biru",opts:["Gajah","Paus Biru","Badak","Hippo"]},
+  {q:"Berapa warna pelangi?",a:"7",opts:["5","6","7","8"]},
+  {q:"Mata uang Jepang?",a:"Yen",opts:["Won","Baht","Yen","Ringgit"]},
+  {q:"Siapa yang melukis Mona Lisa?",a:"Da Vinci",opts:["Picasso","Da Vinci","Michelangelo","Raphael"]},
+  {q:"Unsur kimia dengan simbol O?",a:"Oksigen",opts:["Emas","Osmium","Oksigen","Ozon"]},
+  {q:"Berapa planet di tata surya?",a:"8",opts:["7","8","9","10"]},
+  {q:"Negara terluas di dunia?",a:"Rusia",opts:["China","Amerika","Rusia","Kanada"]},
+  {q:"Bahasa pemrograman yang dibuat Google?",a:"Go",opts:["Swift","Kotlin","Go","Rust"]},
+  {q:"Apa simbol kimia untuk emas?",a:"Au",opts:["Ag","Fe","Au","Cu"]},
+  {q:"Siapa penemu telepon?",a:"Graham Bell",opts:["Edison","Tesla","Graham Bell","Marconi"]},
+  {q:"Berapa derajat sudut lurus?",a:"180",opts:["90","135","180","270"]},
+  {q:"Negara dengan penduduk terbanyak?",a:"India",opts:["China","India","AS","Indonesia"]},
+  {q:"Siapa penulis Harry Potter?",a:"J.K. Rowling",opts:["Tolkien","J.K. Rowling","King","Martin"]},
+  {q:"Organ tubuh yang memompa darah?",a:"Jantung",opts:["Paru-paru","Ginjal","Jantung","Hati"]},
+  {q:"Apa warna langit di siang hari?",a:"Biru",opts:["Merah","Biru","Hijau","Kuning"]},
+  {q:"Air mendidih pada suhu berapa Celsius?",a:"100",opts:["80","90","100","110"]},
+  {q:"Berapa bulan dalam setahun?",a:"12",opts:["10","11","12","13"]},
+  {q:"Ibu kota Prancis?",a:"Paris",opts:["Lyon","Marseille","Paris","Toulouse"]},
+  {q:"Apa nama satelit alami Bumi?",a:"Bulan",opts:["Titan","Bulan","Phobos","Europa"]},
+  {q:"Siapa yang menemukan listrik?",a:"Faraday",opts:["Edison","Tesla","Faraday","Franklin"]},
+  {q:"Sungai terpanjang di dunia?",a:"Nil",opts:["Amazon","Nil","Yangtze","Mississippi"]},
+  {q:"Berapa jumlah tulang manusia dewasa?",a:"206",opts:["186","196","206","216"]},
+  {q:"Bahasa yang paling banyak digunakan di dunia?",a:"Inggris",opts:["Mandarin","Spanyol","Inggris","Hindi"]},
+];
+
+const triviaRooms = {};
+function makeTriviaId() {
+  const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length:4}, () => c[Math.floor(Math.random()*c.length)]).join('');
+}
+function triviaPlayerList(room) {
+  return Object.values(room.players).map(p => ({id:p.id,name:p.name,score:p.score,answered:p.answered}));
+}
+function startTriviaRound(roomId) {
+  const room = triviaRooms[roomId];
+  if (!room) return;
+  if (room.qIdx >= room.questions.length) {
+    const sorted = triviaPlayerList(room).sort((a,b) => b.score - a.score);
+    io.to(roomId).emit('trivia:end', {players: sorted});
+    room.status = 'ended';
+    return;
+  }
+  const q = room.questions[room.qIdx];
+  Object.values(room.players).forEach(p => { p.answered = false; p.answerTime = null; });
+  room.roundStart = Date.now();
+  room.answeredCount = 0;
+  io.to(roomId).emit('trivia:question', {
+    idx: room.qIdx, total: room.questions.length,
+    question: q.q, opts: q.opts, timeLimit: 15
+  });
+  room.timer = setTimeout(() => {
+    io.to(roomId).emit('trivia:reveal', {correct: q.a, players: triviaPlayerList(room)});
+    room.qIdx++;
+    setTimeout(() => startTriviaRound(roomId), 3500);
+  }, 15000);
+}
+
+io.on('trivia:create', () => {}); // placeholder
+
+// ══════════════════════════════════════════════════════
+// BOMB PARTY
+// ══════════════════════════════════════════════════════
+const SYLLABLES_ID = ['AN','IN','UN','KA','MA','SA','RA','TA','DA','LA','BI','MI','SI','TI','DI','LI','BO','MO','SO','TO','DO','LO','BU','MU','SU','TU','DU','LU','ANG','ING','UNG','ANT','INT','AKU','ANA','INA','ARI','ANE','AKA','ARA','IRI','URI','ALA','ILA','ULA','AMAN','IKAN','ULAN','ARAN','INAS','ITAS'];
+const bombRooms = {};
+function makeBombId() {
+  const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length:4}, () => c[Math.floor(Math.random()*c.length)]).join('');
+}
+function bombPlayerList(room) {
+  return Object.values(room.players).map(p => ({id:p.id,name:p.name,lives:p.lives,alive:p.lives>0,lastWord:p.lastWord||''}));
+}
+function nextBombTurn(roomId) {
+  const room = bombRooms[roomId];
+  if (!room) return;
+  const alive = Object.values(room.players).filter(p => p.lives > 0);
+  if (alive.length <= 1) {
+    io.to(roomId).emit('bomb:end', {winner: alive[0] || null, players: bombPlayerList(room)});
+    room.status = 'ended';
+    return;
+  }
+  // next player
+  let found = false;
+  for (let i = 0; i < room.playerOrder.length * 2; i++) {
+    room.turnIdx = (room.turnIdx + 1) % room.playerOrder.length;
+    const pid = room.playerOrder[room.turnIdx];
+    if (room.players[pid] && room.players[pid].lives > 0) { found = true; break; }
+  }
+  if (!found) return;
+  const syllable = SYLLABLES_ID[Math.floor(Math.random() * SYLLABLES_ID.length)];
+  room.currentSyllable = syllable;
+  const timeLimit = Math.max(5, 12 - room.round);
+  room.turnDeadline = Date.now() + timeLimit * 1000;
+  const curPid = room.playerOrder[room.turnIdx];
+  io.to(roomId).emit('bomb:turn', {
+    playerId: curPid, playerName: room.players[curPid].name,
+    syllable, timeLimit, players: bombPlayerList(room)
+  });
+  clearTimeout(room.bombTimer);
+  room.bombTimer = setTimeout(() => {
+    const p = room.players[curPid];
+    if (p) { p.lives = Math.max(0, p.lives - 1); p.lastWord = '💥'; }
+    io.to(roomId).emit('bomb:explode', {playerId: curPid, players: bombPlayerList(room)});
+    room.round++;
+    setTimeout(() => nextBombTurn(roomId), 1500);
+  }, timeLimit * 1000);
+}
+
+// ══════════════════════════════════════════════════════
+// KARTU BOHONG (Bluff Card Game)
+// ══════════════════════════════════════════════════════
+const bluffRooms = {};
+function makeBluffId() {
+  const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length:4}, () => c[Math.floor(Math.random()*c.length)]).join('');
+}
+const RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+function makeDeck() {
+  const deck = [];
+  for (const r of RANKS) for (let s = 0; s < 4; s++) deck.push(r);
+  return deck.sort(() => Math.random() - 0.5);
+}
+function bluffPlayerList(room) {
+  return room.playerOrder.map(id => {
+    const p = room.players[id];
+    return {id, name: p.name, cardCount: p.hand.length, out: p.out};
+  });
+}
+function dealBluff(room) {
+  const deck = makeDeck();
+  const pids = room.playerOrder;
+  pids.forEach((id, i) => {
+    room.players[id].hand = [];
+    room.players[id].out = false;
+  });
+  deck.forEach((card, i) => room.players[pids[i % pids.length]].hand.push(card));
+}
+function nextBluffTurn(room) {
+  const alive = room.playerOrder.filter(id => !room.players[id].out);
+  if (alive.length <= 1) return null;
+  let next = room.turnIdx;
+  for (let i = 0; i < room.playerOrder.length * 2; i++) {
+    next = (next + 1) % room.playerOrder.length;
+    if (!room.players[room.playerOrder[next]].out) { room.turnIdx = next; return room.playerOrder[next]; }
+  }
+  return null;
 }
 
 const PORT = process.env.PORT || 3000;
