@@ -17,7 +17,6 @@
     --absent: #374151;
     --tiktok: #ff0050;
     --tiktok2: #00f2ea;
-    --accent: #ff0050;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -27,41 +26,35 @@
     color: var(--text);
     font-family: 'Noto Sans', sans-serif;
     min-height: 100vh;
-    overflow-x: hidden;
+    overflow: hidden;
   }
 
-  /* Scanline effect */
   body::before {
     content: '';
     position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0,0,0,0.15) 2px,
-      rgba(0,0,0,0.15) 4px
-    );
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.12) 2px, rgba(0,0,0,0.12) 4px);
     pointer-events: none;
     z-index: 9999;
   }
 
-  /* Header */
+  /* ==================== HEADER ==================== */
   header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 24px;
+    padding: 12px 24px;
     border-bottom: 1px solid var(--border);
     background: var(--surface);
     position: sticky;
     top: 0;
     z-index: 100;
+    height: 56px;
   }
 
   .logo {
     font-family: 'Black Han Sans', sans-serif;
-    font-size: 28px;
+    font-size: 24px;
     letter-spacing: 2px;
     background: linear-gradient(135deg, var(--tiktok), var(--tiktok2));
     -webkit-background-clip: text;
@@ -72,27 +65,29 @@
   .logo span {
     -webkit-text-fill-color: var(--text);
     background: none;
-    font-size: 14px;
+    font-size: 13px;
     font-family: 'Noto Sans', sans-serif;
-    letter-spacing: 1px;
-    opacity: 0.5;
+    opacity: 0.4;
     margin-left: 8px;
   }
+
+  .header-right { display: flex; align-items: center; gap: 12px; }
 
   .status-badge {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 6px 14px;
+    padding: 5px 14px;
     border-radius: 999px;
     font-size: 13px;
     font-weight: 600;
     border: 1px solid var(--border);
     transition: all 0.3s;
+    color: var(--muted);
   }
 
   .status-badge.live {
-    background: rgba(255, 0, 80, 0.15);
+    background: rgba(255,0,80,0.15);
     border-color: var(--tiktok);
     color: var(--tiktok);
   }
@@ -105,39 +100,70 @@
 
   .status-badge.live .status-dot {
     background: var(--tiktok);
-    animation: pulse 1.5s infinite;
+    animation: blink 1.5s infinite;
   }
 
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.5; transform: scale(1.3); }
+  @keyframes blink {
+    0%,100% { opacity:1; transform:scale(1); }
+    50% { opacity:0.4; transform:scale(1.4); }
   }
 
-  /* Layout */
-  .layout {
-    display: grid;
-    grid-template-columns: 340px 1fr 340px;
+  .round-badge {
+    font-family: 'Black Han Sans', sans-serif;
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    display: none;
+  }
+
+  body.connected .round-badge { display: block; }
+
+  /* ==================== LAYOUT ==================== */
+  .app {
+    height: calc(100vh - 56px);
+    display: flex;
+  }
+
+  /* ==================== CONNECT SCREEN ==================== */
+  #connectScreen {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at 50% 30%, rgba(255,0,80,0.08) 0%, transparent 60%);
+    flex-direction: column;
     gap: 0;
-    height: calc(100vh - 65px);
   }
 
-  /* Connect Panel */
-  .connect-panel {
-    border-right: 1px solid var(--border);
-    padding: 24px;
+  body.connected #connectScreen { display: none; }
+
+  .connect-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 40px 48px;
+    width: 420px;
     display: flex;
     flex-direction: column;
     gap: 20px;
-    overflow-y: auto;
   }
 
-  .panel-title {
+  .connect-title {
     font-family: 'Black Han Sans', sans-serif;
-    font-size: 13px;
+    font-size: 32px;
+    background: linear-gradient(135deg, var(--tiktok), var(--tiktok2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-align: center;
     letter-spacing: 3px;
-    text-transform: uppercase;
+  }
+
+  .connect-sub {
+    text-align: center;
     color: var(--muted);
-    margin-bottom: 4px;
+    font-size: 13px;
+    margin-top: -12px;
   }
 
   .input-group {
@@ -154,107 +180,59 @@
   }
 
   .tiktok-input {
-    background: var(--border);
+    background: #1e1e1e;
     border: 1px solid #333;
     color: var(--text);
-    padding: 12px 16px;
-    border-radius: 8px;
-    font-size: 15px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    font-size: 16px;
     font-family: 'Noto Sans', sans-serif;
     transition: border-color 0.2s;
     width: 100%;
   }
 
-  .tiktok-input:focus {
-    outline: none;
-    border-color: var(--tiktok);
-  }
+  .tiktok-input:focus { outline: none; border-color: var(--tiktok); }
 
   .btn {
-    padding: 12px 20px;
-    border-radius: 8px;
+    padding: 14px 20px;
+    border-radius: 10px;
     border: none;
     font-family: 'Black Han Sans', sans-serif;
-    font-size: 14px;
+    font-size: 15px;
     letter-spacing: 1px;
     cursor: pointer;
     transition: all 0.2s;
     width: 100%;
   }
 
-  .btn-primary {
-    background: var(--tiktok);
-    color: white;
-  }
-
+  .btn-primary { background: var(--tiktok); color: white; }
   .btn-primary:hover { background: #e0003e; transform: translateY(-1px); }
-  .btn-primary:active { transform: translateY(0); }
+  .btn-secondary { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: #555; color: var(--text); }
+  .btn-sm { font-size: 12px; padding: 8px 14px; width: auto; }
 
-  .btn-secondary {
-    background: transparent;
-    color: var(--muted);
-    border: 1px solid var(--border);
-  }
-
-  .btn-secondary:hover { border-color: var(--text); color: var(--text); }
-
-  .btn-success {
-    background: var(--correct);
-    color: white;
-  }
-
-  /* Divider */
-  .divider {
-    height: 1px;
-    background: var(--border);
-  }
-
-  /* Stats */
-  .stats-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
-
-  .stat-box {
-    background: var(--border);
-    border-radius: 8px;
-    padding: 14px;
-    text-align: center;
-  }
-
-  .stat-value {
-    font-family: 'Black Han Sans', sans-serif;
-    font-size: 28px;
-    color: var(--tiktok2);
-    line-height: 1;
-  }
-
-  .stat-label {
-    font-size: 11px;
-    color: var(--muted);
-    margin-top: 4px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-
-  /* Test input */
-  .test-row {
+  .howto-mini {
     display: flex;
-    gap: 8px;
+    justify-content: center;
+    gap: 20px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
   }
 
-  .test-row input {
-    flex: 1;
+  .howto-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
   }
 
-  .test-row button {
-    width: auto;
-    padding: 12px 16px;
+  .howto-dot {
+    width: 14px; height: 14px;
+    border-radius: 3px;
     flex-shrink: 0;
   }
 
-  /* Notification */
   .notif {
     padding: 10px 14px;
     border-radius: 8px;
@@ -267,192 +245,290 @@
   .notif.success { background: rgba(22,163,74,0.15); color: #4ade80; border: 1px solid #16a34a; }
   .notif.info { background: rgba(0,242,234,0.1); color: var(--tiktok2); border: 1px solid var(--tiktok2); }
 
-  /* Main Game Area */
-  .game-area {
+  /* ==================== GAME SCREEN ==================== */
+  #gameScreen {
+    display: none;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  body.connected #gameScreen {
+    display: flex;
+  }
+
+  /* LEFT SIDEBAR */
+  .sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    align-items: center;
-    padding: 32px 24px;
+    padding: 16px;
+    gap: 14px;
     overflow-y: auto;
-    background: radial-gradient(ellipse at 50% 0%, rgba(255,0,80,0.05) 0%, transparent 60%);
+    background: var(--surface);
   }
 
-  .round-info {
-    text-align: center;
-    margin-bottom: 24px;
-  }
-
-  .round-number {
+  .sidebar-title {
     font-family: 'Black Han Sans', sans-serif;
-    font-size: 13px;
-    letter-spacing: 4px;
-    color: var(--tiktok);
-    margin-bottom: 6px;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--muted);
     text-transform: uppercase;
   }
 
-  .word-hint {
-    font-size: 13px;
-    color: var(--muted);
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
   }
 
-  /* Keyboard */
-  .keyboard {
+  .stat-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+  }
+
+  .stat-value {
+    font-family: 'Black Han Sans', sans-serif;
+    font-size: 24px;
+    color: var(--tiktok2);
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 3px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .divider { height: 1px; background: var(--border); }
+
+  .test-row { display: flex; gap: 6px; }
+  .test-row input { flex: 1; font-size: 13px; padding: 8px 10px; }
+  .test-row button { width: auto; padding: 8px 12px; font-size: 12px; }
+
+  .howto-small {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+
+  .howto-small strong { color: var(--text); }
+
+  .color-dot {
+    display: inline-block;
+    width: 9px; height: 9px;
+    border-radius: 2px;
+    margin-right: 3px;
+    vertical-align: middle;
+  }
+
+  /* MAIN GAME AREA */
+  .game-main {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    margin-bottom: 32px;
-  }
-
-  .kb-row {
-    display: flex;
-    gap: 5px;
-    justify-content: center;
-  }
-
-  .kb-key {
-    width: 38px;
-    height: 38px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 5px;
-    color: var(--text);
-    font-family: 'Black Han Sans', sans-serif;
-    font-size: 13px;
-    display: flex;
     align-items: center;
-    justify-content: center;
-    transition: all 0.3s;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 50% 0%, rgba(255,0,80,0.06) 0%, transparent 55%);
+    padding: 20px 16px 12px;
+    gap: 12px;
   }
-
-  .kb-key.correct { background: var(--correct); border-color: var(--correct); }
-  .kb-key.present { background: var(--present); border-color: var(--present); }
-  .kb-key.absent { background: var(--absent); border-color: var(--absent); color: #555; }
 
   /* Winner banner */
   .winner-banner {
+    width: 100%;
+    max-width: 520px;
     background: linear-gradient(135deg, rgba(22,163,74,0.2), rgba(0,242,234,0.1));
     border: 1px solid var(--correct);
     border-radius: 12px;
-    padding: 20px 32px;
+    padding: 14px 24px;
     text-align: center;
-    margin-bottom: 24px;
     display: none;
-    animation: slideIn 0.5s ease;
+    animation: slideDown 0.4s ease;
+    flex-shrink: 0;
   }
 
-  .winner-banner.show { display: block; }
+  .winner-banner.show { display: flex; align-items: center; justify-content: center; gap: 16px; }
 
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateY(-20px); }
-    to { opacity: 1; transform: translateY(0); }
+  @keyframes slideDown {
+    from { opacity:0; transform:translateY(-16px); }
+    to { opacity:1; transform:translateY(0); }
   }
 
   .winner-banner h2 {
     font-family: 'Black Han Sans', sans-serif;
-    font-size: 24px;
+    font-size: 18px;
     color: #4ade80;
   }
 
-  .winner-word {
+  .winner-word-display {
     font-family: 'Black Han Sans', sans-serif;
-    font-size: 32px;
-    letter-spacing: 8px;
+    font-size: 22px;
+    letter-spacing: 6px;
     color: var(--tiktok2);
-    margin-top: 8px;
   }
 
-  /* Guesses feed */
-  .guesses-feed {
-    width: 100%;
-    max-width: 600px;
+  .winner-user { font-size: 13px; color: var(--muted); }
+
+  /* WORDLE BOARD — big tiles for last guess */
+  .wordle-board {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-  }
-
-  .guess-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 10px 14px;
-    animation: fadeIn 0.3s ease;
-  }
-
-  .guess-row.winner {
-    border-color: var(--correct);
-    background: rgba(22,163,74,0.1);
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateX(-10px); }
-    to { opacity: 1; transform: translateX(0); }
-  }
-
-  .guess-num {
-    font-size: 11px;
-    color: var(--muted);
-    width: 24px;
-    text-align: center;
+    gap: 5px;
     flex-shrink: 0;
   }
 
-  .guess-username {
-    font-size: 13px;
-    color: var(--tiktok2);
-    font-weight: 600;
-    width: 120px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .guess-tiles {
+  .board-row {
     display: flex;
-    gap: 4px;
-    flex: 1;
+    gap: 5px;
+    animation: popIn 0.25s ease;
   }
 
-  .tile {
-    width: 36px;
-    height: 36px;
-    border-radius: 5px;
+  @keyframes popIn {
+    0% { transform: scale(0.94); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  .board-tile {
+    width: 52px;
+    height: 52px;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-family: 'Black Han Sans', sans-serif;
-    font-size: 16px;
-    letter-spacing: 0;
-    transition: all 0.3s;
+    font-size: 22px;
+    font-weight: 900;
+    position: relative;
   }
 
-  .tile.correct { background: var(--correct); color: white; }
-  .tile.present { background: var(--present); color: white; }
-  .tile.absent { background: var(--absent); color: #888; }
+  .board-tile.correct { background: var(--correct); color: white; }
+  .board-tile.present { background: var(--present); color: white; }
+  .board-tile.absent  { background: var(--absent);  color: #777; }
+  .board-tile.empty   { background: #1a1a1a; border: 1px solid #333; color: transparent; }
 
-  .guess-time {
-    font-size: 11px;
-    color: var(--muted);
+  /* Guesser label */
+  .board-row-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .board-row-info {
+    width: 130px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .bri-avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 2px solid var(--border);
+  }
+
+  .bri-avatar-placeholder {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--tiktok), var(--tiktok2));
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Black Han Sans', sans-serif;
+    font-size: 13px; color: white;
     flex-shrink: 0;
   }
 
-  .empty-state {
+  .bri-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .bri-handle {
+    font-size: 10px;
+    color: var(--tiktok2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* PROGRESS BAR */
+  .progress-wrap {
+    width: 100%;
+    max-width: 400px;
+    flex-shrink: 0;
+  }
+
+  .progress-bar {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--tiktok), var(--tiktok2));
+    border-radius: 2px;
+    transition: width 0.4s ease;
+  }
+
+  .progress-label {
     text-align: center;
-    padding: 60px 20px;
+    font-size: 11px;
     color: var(--muted);
+    margin-top: 5px;
   }
 
-  .empty-state .big {
-    font-size: 48px;
-    margin-bottom: 16px;
+  /* KEYBOARD */
+  .keyboard {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex-shrink: 0;
   }
 
-  /* Chat feed panel */
+  .kb-row {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+  }
+
+  .kb-key {
+    width: 36px;
+    height: 44px;
+    background: #222;
+    border: 1px solid #333;
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'Black Han Sans', sans-serif;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s;
+    user-select: none;
+  }
+
+  .kb-key.correct { background: var(--correct); border-color: var(--correct); color: white; }
+  .kb-key.present { background: var(--present); border-color: var(--present); color: white; }
+  .kb-key.absent  { background: #1a1a1a; border-color: #1a1a1a; color: #444; }
+
+  /* RIGHT: CHAT PANEL */
   .chat-panel {
+    width: 280px;
+    flex-shrink: 0;
     border-left: 1px solid var(--border);
     display: flex;
     flex-direction: column;
@@ -460,241 +536,187 @@
   }
 
   .chat-header {
-    padding: 16px 20px;
+    padding: 14px 16px;
     border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .panel-title {
+    font-family: 'Black Han Sans', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
   }
 
   .chat-feed {
     flex: 1;
     overflow-y: auto;
-    padding: 12px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 5px;
   }
 
-  .chat-feed::-webkit-scrollbar { width: 4px; }
-  .chat-feed::-webkit-scrollbar-track { background: transparent; }
+  .chat-feed::-webkit-scrollbar { width: 3px; }
   .chat-feed::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
   .chat-item {
     background: var(--surface);
     border-radius: 8px;
-    padding: 8px 12px;
-    font-size: 13px;
+    padding: 7px 10px;
+    font-size: 12px;
     border: 1px solid transparent;
-    animation: fadeIn 0.2s ease;
+    animation: fadeUp 0.2s ease;
+    flex-shrink: 0;
+  }
+
+  @keyframes fadeUp {
+    from { opacity:0; transform:translateY(6px); }
+    to { opacity:1; transform:translateY(0); }
   }
 
   .chat-item.word-guess {
-    border-color: rgba(0,242,234,0.3);
-    background: rgba(0,242,234,0.05);
-  }
-
-  .chat-item .chat-user {
-    color: var(--tiktok);
-    font-weight: 700;
-    font-size: 12px;
-    margin-bottom: 2px;
-  }
-
-  .chat-item .chat-msg {
-    color: var(--text);
-    word-break: break-word;
-  }
-
-  .chat-item.word-guess .chat-msg {
-    color: var(--tiktok2);
-    font-family: 'Black Han Sans', sans-serif;
-    letter-spacing: 2px;
-  }
-
-  /* Countdown */
-  .countdown {
-    text-align: center;
-    padding: 20px;
-    font-family: 'Black Han Sans', sans-serif;
-  }
-
-  .countdown-num {
-    font-size: 48px;
-    color: var(--tiktok);
-    line-height: 1;
-  }
-
-  .countdown-label {
-    font-size: 12px;
-    color: var(--muted);
-    letter-spacing: 2px;
-    margin-top: 4px;
-  }
-
-  /* Progress */
-  .progress-bar {
-    height: 2px;
-    background: var(--border);
-    border-radius: 1px;
-    overflow: hidden;
-    margin: 8px 0;
-  }
-
-  .progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--tiktok), var(--tiktok2));
-    border-radius: 1px;
-    transition: width 0.5s ease;
-  }
-
-  /* How to play */
-  .howto {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 16px;
-    font-size: 12px;
-    line-height: 1.8;
-    color: var(--muted);
-  }
-
-  .howto strong {
-    color: var(--text);
-  }
-
-  .color-dot {
-    display: inline-block;
-    width: 10px; height: 10px;
-    border-radius: 2px;
-    margin-right: 4px;
-    vertical-align: middle;
-  }
-
-  @media (max-width: 900px) {
-    .layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; }
-    .connect-panel, .chat-panel { border: none; border-bottom: 1px solid var(--border); }
-    .layout .game-area { order: 2; }
-  }
-
-  /* Avatars */
-  .guess-avatar, .chat-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 2px solid var(--border);
-    flex-shrink: 0;
-  }
-
-  .guess-avatar-placeholder, .chat-avatar-placeholder {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--tiktok), var(--tiktok2));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: "Black Han Sans", sans-serif;
-    font-size: 16px;
-    color: white;
-    flex-shrink: 0;
-  }
-
-  .guess-userinfo {
-    width: 130px;
-    flex-shrink: 0;
-    overflow: hidden;
-  }
-
-  .guess-nickname {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .guess-handle {
-    font-size: 11px;
-    color: var(--tiktok2);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    border-color: rgba(0,242,234,0.25);
+    background: rgba(0,242,234,0.04);
   }
 
   .chat-header-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
+    gap: 7px;
+    margin-bottom: 4px;
   }
 
-  .chat-handle {
-    font-size: 10px;
+  .chat-avatar {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  .chat-avatar-placeholder {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--tiktok), var(--tiktok2));
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Black Han Sans', sans-serif;
+    font-size: 10px; color: white;
+    flex-shrink: 0;
+  }
+
+  .chat-user { color: var(--tiktok); font-weight: 700; font-size: 11px; }
+  .chat-handle { font-size: 9px; color: var(--muted); }
+  .chat-msg { color: var(--text); word-break: break-word; }
+  .chat-item.word-guess .chat-msg {
+    color: var(--tiktok2);
+    font-family: 'Black Han Sans', sans-serif;
+    letter-spacing: 3px;
+    font-size: 13px;
+  }
+
+  /* Scrollable board area */
+  .board-scroll {
+    flex: 1;
+    overflow-y: auto;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    padding-bottom: 8px;
+  }
+
+  .board-scroll::-webkit-scrollbar { width: 3px; }
+  .board-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* Empty board state */
+  .board-empty {
     color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+    padding: 32px 16px;
   }
 
-  .chat-avatar, .chat-avatar-placeholder {
-    width: 28px;
-    height: 28px;
-    font-size: 12px;
-  }
+  .board-empty .big { font-size: 40px; margin-bottom: 8px; }
 
+  /* Word hint in header */
+  .word-hint-header {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'Noto Sans', sans-serif;
+    font-weight: normal;
+    letter-spacing: 0;
+    margin-left: 8px;
+  }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="logo">
-    WORDLE<span>× TIKTOK LIVE</span>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div class="logo">WORDLE<span>× TIKTOK LIVE</span></div>
+    <div class="round-badge" id="roundBadge">RONDE #0</div>
   </div>
-  <div class="status-badge" id="statusBadge">
-    <div class="status-dot"></div>
-    <span id="statusText">Belum Connect</span>
+  <div class="header-right">
+    <div id="notifHeader" class="notif" style="margin:0;padding:6px 12px;font-size:12px"></div>
+    <div class="status-badge" id="statusBadge">
+      <div class="status-dot"></div>
+      <span id="statusText">Belum Connect</span>
+    </div>
   </div>
 </header>
 
-<div class="layout">
+<div class="app">
 
-  <!-- LEFT: Connect Panel -->
-  <div class="connect-panel">
-    <div>
-      <div class="panel-title">TikTok Connect</div>
-    </div>
+  <!-- ========== CONNECT SCREEN ========== -->
+  <div id="connectScreen">
+    <div class="connect-card">
+      <div class="connect-title">🎮 WORDLE LIVE</div>
+      <div class="connect-sub">Penonton TikTok Live kamu bisa ikut main!</div>
 
-    <div id="notif" class="notif"></div>
+      <div id="notif" class="notif"></div>
 
-    <div class="input-group">
-      <label>Username TikTok</label>
-      <input type="text" class="tiktok-input" id="tiktokUsername" placeholder="@username_kamu">
-    </div>
+      <div class="input-group">
+        <label>Username TikTok kamu</label>
+        <input type="text" class="tiktok-input" id="tiktokUsername" placeholder="@username_kamu">
+      </div>
 
-    <button class="btn btn-primary" onclick="connectTikTok()">🔴 Connect Live</button>
-    <button class="btn btn-secondary" onclick="disconnectTikTok()">Disconnect</button>
+      <button class="btn btn-primary" onclick="connectTikTok()">🔴 Connect ke Live</button>
 
-    <div class="divider"></div>
-
-    <div>
-      <div class="panel-title" style="margin-bottom:12px">Game</div>
-      <button class="btn btn-success" onclick="newRound()">🎮 Ronde Baru</button>
-    </div>
-
-    <div class="divider"></div>
-
-    <div>
-      <div class="panel-title" style="margin-bottom:12px">Test Tebakan</div>
-      <div class="test-row">
-        <input type="text" class="tiktok-input" id="testWord" placeholder="5 huruf" maxlength="5" style="text-transform:uppercase">
-        <button class="btn btn-secondary" onclick="testGuess()" style="white-space:nowrap">Kirim</button>
+      <div class="howto-mini">
+        <div class="howto-item">
+          <div class="howto-dot" style="background:var(--correct)"></div>
+          Posisi tepat
+        </div>
+        <div class="howto-item">
+          <div class="howto-dot" style="background:var(--present)"></div>
+          Ada, beda posisi
+        </div>
+        <div class="howto-item">
+          <div class="howto-dot" style="background:var(--absent)"></div>
+          Tidak ada
+        </div>
       </div>
     </div>
+  </div>
 
-    <div class="divider"></div>
+  <!-- ========== GAME SCREEN ========== -->
+  <div id="gameScreen">
 
-    <div>
-      <div class="panel-title" style="margin-bottom:12px">Statistik</div>
+    <!-- LEFT SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-title">Kontrol</div>
+
+      <button class="btn btn-secondary btn-sm" onclick="newRound()">🎮 Ronde Baru</button>
+      <button class="btn btn-secondary btn-sm" onclick="disconnectTikTok()">✕ Disconnect</button>
+
+      <div class="divider"></div>
+
+      <div class="sidebar-title">Statistik</div>
       <div class="stats-grid">
         <div class="stat-box">
           <div class="stat-value" id="statRound">0</div>
@@ -705,131 +727,117 @@
           <div class="stat-label">Tebakan</div>
         </div>
       </div>
-    </div>
 
-    <div class="divider"></div>
+      <div class="divider"></div>
 
-    <div class="howto">
-      <strong>Cara Main:</strong><br>
-      Penonton ketik kata <strong>5 huruf</strong> di chat TikTok Live kamu<br><br>
-      <span class="color-dot" style="background:var(--correct)"></span><strong>Hijau</strong> = huruf & posisi benar<br>
-      <span class="color-dot" style="background:var(--present)"></span><strong>Kuning</strong> = huruf ada, posisi salah<br>
-      <span class="color-dot" style="background:var(--absent)"></span><strong>Abu</strong> = huruf tidak ada
-    </div>
-  </div>
+      <div class="sidebar-title">Tes Tebakan</div>
+      <div class="test-row">
+        <input type="text" class="tiktok-input" id="testWord" placeholder="5 huruf" maxlength="5" style="text-transform:uppercase">
+        <button class="btn btn-secondary" onclick="testGuess()">→</button>
+      </div>
 
-  <!-- CENTER: Game Area -->
-  <div class="game-area">
-    <div class="round-info">
-      <div class="round-number" id="roundNum">RONDE #0</div>
-      <div class="word-hint" id="wordHint">Belum ada game aktif</div>
-    </div>
+      <div class="divider"></div>
 
-    <div class="winner-banner" id="winnerBanner">
-      <h2>🏆 MENANG!</h2>
-      <div id="winnerName" style="color:var(--muted);font-size:14px;margin-top:4px"></div>
-      <div class="winner-word" id="winnerWord"></div>
-      <div style="font-size:12px;color:var(--muted);margin-top:12px">Ronde baru dalam 8 detik...</div>
-    </div>
-
-    <div class="keyboard" id="keyboard"></div>
-
-    <div class="progress-bar">
-      <div class="progress-fill" id="progressFill" style="width:0%"></div>
-    </div>
-    <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:20px">
-      <span id="guessCount">0</span> / <span id="maxGuess">20</span> tebakan
-    </div>
-
-    <div class="guesses-feed" id="guessesFeed">
-      <div class="empty-state">
-        <div class="big">🎮</div>
-        <div>Connect ke TikTok Live dulu<br>lalu penonton bisa mulai menebak!</div>
+      <div class="howto-small">
+        <strong>Cara main:</strong><br>
+        Penonton ketik <strong>5 huruf</strong> di chat<br><br>
+        <span class="color-dot" style="background:var(--correct)"></span><strong>Hijau</strong> = posisi benar<br>
+        <span class="color-dot" style="background:var(--present)"></span><strong>Kuning</strong> = ada, beda posisi<br>
+        <span class="color-dot" style="background:var(--absent)"></span><strong>Abu</strong> = tidak ada
       </div>
     </div>
-  </div>
 
-  <!-- RIGHT: Chat Feed -->
-  <div class="chat-panel">
-    <div class="chat-header">
-      <div class="panel-title">Live Chat</div>
-      <div style="font-size:12px;color:var(--muted)" id="chatCount">0 pesan</div>
-    </div>
-    <div class="chat-feed" id="chatFeed">
-      <div style="text-align:center;color:var(--muted);padding:40px 20px;font-size:13px">
-        Chat dari penonton TikTok<br>akan muncul di sini
+    <!-- CENTER: GAME AREA -->
+    <div class="game-main">
+
+      <!-- Winner Banner -->
+      <div class="winner-banner" id="winnerBanner">
+        <div>
+          <div style="font-size:24px">🏆</div>
+        </div>
+        <div>
+          <div style="font-family:'Black Han Sans',sans-serif;font-size:16px;color:#4ade80">MENANG!</div>
+          <div class="winner-user" id="winnerName"></div>
+        </div>
+        <div class="winner-word-display" id="winnerWord"></div>
+        <div style="font-size:11px;color:var(--muted);border-left:1px solid var(--border);padding-left:16px">Ronde baru<br>dalam 8 detik...</div>
       </div>
-    </div>
-  </div>
 
-</div>
+      <!-- Progress -->
+      <div class="progress-wrap">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill" style="width:0%"></div>
+        </div>
+        <div class="progress-label">
+          <span id="guessCount">0</span> / <span id="maxGuess">20</span> tebakan
+        </div>
+      </div>
+
+      <!-- Keyboard -->
+      <div class="keyboard" id="keyboard"></div>
+
+      <!-- Board rows scroll -->
+      <div class="board-scroll" id="boardScroll">
+        <div class="board-empty" id="boardEmpty">
+          <div class="big">💬</div>
+          Menunggu penonton menebak...
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: CHAT PANEL -->
+    <div class="chat-panel">
+      <div class="chat-header">
+        <div class="panel-title">Live Chat</div>
+        <div style="font-size:11px;color:var(--muted)" id="chatCount">0 pesan</div>
+      </div>
+      <div class="chat-feed" id="chatFeed"></div>
+    </div>
+
+  </div><!-- end gameScreen -->
+
+</div><!-- end app -->
 
 <script>
 // =============================================
-// WEBSOCKET
+// STATE
 // =============================================
-let ws;
-let reconnectTimer;
+let ws, reconnectTimer;
 let chatCount = 0;
-const MAX_GUESSES = 20;
 let keyboardState = {};
 let gameActive = false;
+let totalGuesses = 0;
 
+// =============================================
+// WEBSOCKET
+// =============================================
 function connectWS() {
-  const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  ws = new WebSocket(`${wsProtocol}//${location.host}`);
-  
-  ws.onopen = () => console.log("WebSocket connected");
-  
-  ws.onmessage = (e) => {
-    const data = JSON.parse(e.data);
-    handleMessage(data);
-  };
-  
-  ws.onclose = () => {
-    reconnectTimer = setTimeout(connectWS, 3000);
-  };
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${proto}//${location.host}`);
+  ws.onopen = () => console.log("WS connected");
+  ws.onmessage = e => handleMessage(JSON.parse(e.data));
+  ws.onclose = () => { reconnectTimer = setTimeout(connectWS, 3000); };
 }
 
 function handleMessage(data) {
   switch(data.type) {
-    case "STATE":
-      restoreState(data.state);
-      break;
-    
-    case "NEW_ROUND":
-      handleNewRound(data);
-      break;
-    
-    case "NEW_GUESS":
-      addGuessRow(data.guess);
-      updateProgress(data.totalGuesses);
-      addChatItem(data.guess.username, data.guess.word, true, data.guess.nickname, data.guess.avatar);
-      updateKeyboard(data.guess.word, data.guess.result);
-      break;
-    
-    case "GAME_WON":
-      showWinner(data.winner, data.word, data.nickname, data.avatar);
-      break;
-    
-    case "GAME_OVER":
-      showGameOver(data.word);
-      break;
-    
+    case "STATE":         restoreState(data.state); break;
+    case "NEW_ROUND":     handleNewRound(data); break;
+    case "NEW_GUESS":     handleNewGuess(data); break;
+    case "GAME_WON":      handleWin(data); break;
+    case "GAME_OVER":     handleGameOver(data); break;
     case "TIKTOK_CONNECTED":
-      setStatus("live", `@${data.username} LIVE`);
-      showNotif(`✅ Berhasil connect ke @${data.username}!`, "success");
+      enterGameMode(data.username);
+      showNotif(`✅ Connected ke @${data.username}!`, "success");
       break;
-    
     case "TIKTOK_DISCONNECTED":
       setStatus("", "Terputus");
-      showNotif("❌ Koneksi TikTok terputus", "error");
+      showNotif("❌ TikTok terputus", "error");
       break;
-    
     case "CHAT_MESSAGE":
       addChatItem(data.username, data.message, data.isGuess, data.nickname, data.avatar);
       break;
-
     case "TIKTOK_ERROR":
       showNotif(`⚠️ ${data.message}`, "error");
       break;
@@ -839,154 +847,132 @@ function handleMessage(data) {
 function restoreState(state) {
   document.getElementById("statRound").textContent = state.roundNumber;
   document.getElementById("statGuesses").textContent = state.guesses.length;
-  document.getElementById("roundNum").textContent = `RONDE #${state.roundNumber}`;
-  
-  if (state.isActive) {
-    document.getElementById("wordHint").textContent = "Penonton, ketik kata 5 huruf di chat!";
-    gameActive = true;
-  }
+  totalGuesses = state.guesses.length;
+  updateProgress(state.guesses.length, state.maxGuesses);
 
-  if (state.connected) {
+  if (state.connected || state.isActive) {
+    enterGameMode(state.tiktokUser);
+    document.getElementById("roundBadge").textContent = `RONDE #${state.roundNumber}`;
     setStatus("live", `@${state.tiktokUser} LIVE`);
   }
 
-  // Restore guesses
+  if (state.isActive) gameActive = true;
+
   if (state.guesses.length > 0) {
-    document.getElementById("guessesFeed").innerHTML = "";
-    state.guesses.forEach(g => {
-      addGuessRow(g, false);
-      updateKeyboard(g.word, g.result);
-    });
-    updateProgress(state.guesses.length);
+    document.getElementById("boardEmpty").style.display = "none";
+    state.guesses.forEach(g => addBoardRow(g, false));
+    state.guesses.forEach(g => updateKeyboard(g.word, g.result));
+    scrollBoardToBottom();
   }
 }
 
 // =============================================
-// UI UPDATES
+// GAME MODE SWITCH
 // =============================================
-function setStatus(type, text) {
-  const badge = document.getElementById("statusBadge");
-  const statusText = document.getElementById("statusText");
-  badge.className = "status-badge" + (type === "live" ? " live" : "");
-  statusText.textContent = text;
+function enterGameMode(username) {
+  document.body.classList.add("connected");
+  setStatus("live", `@${username} LIVE`);
 }
 
-function showNotif(msg, type) {
-  const el = document.getElementById("notif");
-  el.className = `notif show ${type}`;
-  el.textContent = msg;
-  setTimeout(() => el.classList.remove("show"), 5000);
+function exitGameMode() {
+  document.body.classList.remove("connected");
+  setStatus("", "Belum Connect");
 }
 
+// =============================================
+// HANDLERS
+// =============================================
 function handleNewRound(data) {
   gameActive = true;
   keyboardState = {};
-  document.getElementById("roundNum").textContent = `RONDE #${data.roundNumber}`;
-  document.getElementById("wordHint").textContent = "Penonton, ketik kata 5 huruf di chat!";
+  totalGuesses = 0;
+  document.getElementById("roundBadge").textContent = `RONDE #${data.roundNumber}`;
   document.getElementById("statRound").textContent = data.roundNumber;
-  document.getElementById("guessesFeed").innerHTML = "";
-  document.getElementById("winnerBanner").classList.remove("show");
-  document.getElementById("progressFill").style.width = "0%";
-  document.getElementById("guessCount").textContent = "0";
+  document.getElementById("statGuesses").textContent = 0;
   document.getElementById("maxGuess").textContent = data.maxGuesses;
+  document.getElementById("winnerBanner").classList.remove("show");
+  updateProgress(0, data.maxGuesses);
   renderKeyboard();
+  // Clear board
+  const scroll = document.getElementById("boardScroll");
+  scroll.innerHTML = `<div class="board-empty" id="boardEmpty"><div class="big">💬</div>Menunggu penonton menebak...</div>`;
 }
 
-function addGuessRow(guess, animate = true) {
-  const feed = document.getElementById("guessesFeed");
-  
-  // Remove empty state
-  const empty = feed.querySelector(".empty-state");
+function handleNewGuess(data) {
+  addBoardRow(data.guess);
+  updateProgress(data.totalGuesses);
+  updateKeyboard(data.guess.word, data.guess.result);
+  addChatItem(data.guess.username, data.guess.word, true, data.guess.nickname, data.guess.avatar);
+  totalGuesses = data.totalGuesses;
+  document.getElementById("statGuesses").textContent = totalGuesses;
+}
+
+function handleWin(data) {
+  gameActive = false;
+  const banner = document.getElementById("winnerBanner");
+  const avatarHtml = data.avatar
+    ? `<img src="${data.avatar}" style="width:32px;height:32px;border-radius:50%;border:2px solid var(--correct);margin-right:6px;vertical-align:middle" onerror="this.style.display='none'">`
+    : '';
+  document.getElementById("winnerName").innerHTML = `${avatarHtml}${data.nickname || data.winner}`;
+  document.getElementById("winnerWord").textContent = data.word;
+  banner.classList.add("show");
+}
+
+function handleGameOver(data) {
+  gameActive = false;
+  showNotif(`Kata: ${data.word} — Tidak ada yang menang!`, "info");
+}
+
+// =============================================
+// BOARD ROWS
+// =============================================
+function addBoardRow(guess, animate = true) {
+  const scroll = document.getElementById("boardScroll");
+
+  // Remove empty placeholder
+  const empty = document.getElementById("boardEmpty");
   if (empty) empty.remove();
 
   const isWin = guess.result.every(r => r === "correct");
-  const row = document.createElement("div");
-  row.className = `guess-row${isWin ? " winner" : ""}`;
-  if (!animate) row.style.animation = "none";
 
-  const time = new Date(guess.timestamp).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const wrap = document.createElement("div");
+  wrap.className = "board-row-wrap";
+  if (!animate) wrap.style.animation = "none";
 
   const avatarHtml = guess.avatar
-    ? `<img class="guess-avatar" src="${guess.avatar}" onerror="this.style.display='none'">`
-    : `<div class="guess-avatar-placeholder">${(guess.nickname||guess.username)[0].toUpperCase()}</div>`;
+    ? `<img class="bri-avatar" src="${guess.avatar}" onerror="this.style.display='none'">`
+    : `<div class="bri-avatar-placeholder">${(guess.nickname || guess.username)[0].toUpperCase()}</div>`;
 
-  row.innerHTML = `
-    <div class="guess-num">#${guess.guessNumber}</div>
-    ${avatarHtml}
-    <div class="guess-userinfo">
-      <div class="guess-nickname">${guess.nickname || guess.username}</div>
-      <div class="guess-handle">@${guess.username}</div>
-    </div>
-    <div class="guess-tiles">
-      ${guess.word.split("").map((letter, i) => `
-        <div class="tile ${guess.result[i]}">${letter}</div>
-      `).join("")}
-    </div>
-    <div class="guess-time">${time}</div>
-  `;
-
-  feed.appendChild(row);
-  row.scrollIntoView({ behavior: "smooth", block: "nearest" });
-
-  document.getElementById("statGuesses").textContent = parseInt(document.getElementById("statGuesses").textContent) + (animate ? 1 : 0);
-}
-
-function updateProgress(count) {
-  const max = parseInt(document.getElementById("maxGuess").textContent) || 20;
-  document.getElementById("guessCount").textContent = count;
-  document.getElementById("progressFill").style.width = `${(count / max) * 100}%`;
-}
-
-function showWinner(winner, word, nickname, avatar) {
-  const banner = document.getElementById("winnerBanner");
-  const avatarHtml = avatar
-    ? `<img src="${avatar}" style="width:56px;height:56px;border-radius:50%;border:3px solid var(--correct);margin-bottom:8px" onerror="this.style.display='none'">`
-    : ``;
-  document.getElementById("winnerName").innerHTML = `${avatarHtml}<br>${nickname || winner} <span style="font-size:12px;color:var(--muted)">(@${winner})</span>`;
-  document.getElementById("winnerWord").textContent = word;
-  banner.classList.add("show");
-  gameActive = false;
-  document.getElementById("wordHint").textContent = `Kata: ${word} ✅`;
-}
-
-function showGameOver(word) {
-  document.getElementById("wordHint").textContent = `Kata: ${word} — Tidak ada yang menang!`;
-  gameActive = false;
-}
-
-function addChatItem(user, msg, isGuess = false, nickname = "", avatar = "") {
-  const feed = document.getElementById("chatFeed");
-  
-  // Remove initial placeholder
-  const placeholder = feed.querySelector("div:not(.chat-item)");
-  if (placeholder && feed.children.length === 1) placeholder.remove();
-
-  const item = document.createElement("div");
-  item.className = `chat-item${isGuess ? " word-guess" : ""}`;
-  const chatAvatar = avatar
-    ? `<img class="chat-avatar" src="${avatar}" onerror="this.style.display='none'">`
-    : `<div class="chat-avatar-placeholder">${(nickname||user)[0].toUpperCase()}</div>`;
-  item.innerHTML = `
-    <div class="chat-header-row">
-      ${chatAvatar}
-      <div>
-        <div class="chat-user">${nickname || user}</div>
-        <div class="chat-handle">@${user}</div>
+  wrap.innerHTML = `
+    <div class="board-row-info">
+      ${avatarHtml}
+      <div style="overflow:hidden">
+        <div class="bri-name">${guess.nickname || guess.username}</div>
+        <div class="bri-handle">@${guess.username}</div>
       </div>
     </div>
-    <div class="chat-msg">${msg}</div>
+    <div class="board-row" style="${isWin ? 'filter:drop-shadow(0 0 8px rgba(22,163,74,0.6))' : ''}">
+      ${guess.word.split('').map((l,i) => `<div class="board-tile ${guess.result[i]}">${l}</div>`).join('')}
+    </div>
   `;
-  
-  feed.appendChild(item);
-  feed.scrollTop = feed.scrollHeight;
 
-  chatCount++;
-  document.getElementById("chatCount").textContent = `${chatCount} pesan`;
+  scroll.appendChild(wrap);
+  if (animate) scrollBoardToBottom();
+}
 
-  // Limit chat to 100 items
-  while (feed.children.length > 100) {
-    feed.removeChild(feed.firstChild);
-  }
+function scrollBoardToBottom() {
+  const scroll = document.getElementById("boardScroll");
+  scroll.scrollTop = scroll.scrollHeight;
+}
+
+// =============================================
+// PROGRESS
+// =============================================
+function updateProgress(count, max) {
+  const m = max || parseInt(document.getElementById("maxGuess").textContent) || 20;
+  document.getElementById("guessCount").textContent = count;
+  document.getElementById("maxGuess").textContent = m;
+  document.getElementById("progressFill").style.width = `${(count / m) * 100}%`;
 }
 
 // =============================================
@@ -998,9 +984,7 @@ function renderKeyboard() {
     ["A","S","D","F","G","H","J","K","L"],
     ["Z","X","C","V","B","N","M"]
   ];
-
-  const kb = document.getElementById("keyboard");
-  kb.innerHTML = rows.map(row => `
+  document.getElementById("keyboard").innerHTML = rows.map(row => `
     <div class="kb-row">
       ${row.map(k => `<div class="kb-key" id="key-${k}">${k}</div>`).join("")}
     </div>
@@ -1008,18 +992,14 @@ function renderKeyboard() {
 }
 
 function updateKeyboard(word, result) {
-  const priority = { correct: 3, present: 2, absent: 1 };
-  
-  word.split("").forEach((letter, i) => {
+  const priority = { correct:3, present:2, absent:1 };
+  word.split("").forEach((l, i) => {
     const state = result[i];
-    const current = keyboardState[letter];
-    
-    if (!current || priority[state] > priority[current]) {
-      keyboardState[letter] = state;
-      const key = document.getElementById(`key-${letter}`);
-      if (key) {
-        key.className = `kb-key ${state}`;
-      }
+    const cur = keyboardState[l];
+    if (!cur || priority[state] > priority[cur]) {
+      keyboardState[l] = state;
+      const key = document.getElementById(`key-${l}`);
+      if (key) key.className = `kb-key ${state}`;
     }
   });
 }
@@ -1027,17 +1007,62 @@ function updateKeyboard(word, result) {
 renderKeyboard();
 
 // =============================================
+// CHAT
+// =============================================
+function addChatItem(user, msg, isGuess = false, nickname = "", avatar = "") {
+  const feed = document.getElementById("chatFeed");
+  const item = document.createElement("div");
+  item.className = `chat-item${isGuess ? " word-guess" : ""}`;
+
+  const av = avatar
+    ? `<img class="chat-avatar" src="${avatar}" onerror="this.style.display='none'">`
+    : `<div class="chat-avatar-placeholder">${(nickname||user)[0].toUpperCase()}</div>`;
+
+  item.innerHTML = `
+    <div class="chat-header-row">
+      ${av}
+      <div>
+        <div class="chat-user">${nickname || user}</div>
+        <div class="chat-handle">@${user}</div>
+      </div>
+    </div>
+    <div class="chat-msg">${msg}</div>
+  `;
+
+  feed.appendChild(item);
+  feed.scrollTop = feed.scrollHeight;
+  chatCount++;
+  document.getElementById("chatCount").textContent = `${chatCount} pesan`;
+  while (feed.children.length > 120) feed.removeChild(feed.firstChild);
+}
+
+// =============================================
+// STATUS & NOTIF
+// =============================================
+function setStatus(type, text) {
+  document.getElementById("statusBadge").className = "status-badge" + (type === "live" ? " live" : "");
+  document.getElementById("statusText").textContent = text;
+}
+
+let notifTimer;
+function showNotif(msg, type) {
+  // Show in connect screen if not connected, else in header
+  const inConnect = !document.body.classList.contains("connected");
+  const el = inConnect ? document.getElementById("notif") : document.getElementById("notifHeader");
+  if (!el) return;
+  el.className = `notif show ${type}`;
+  el.textContent = msg;
+  clearTimeout(notifTimer);
+  notifTimer = setTimeout(() => el.classList.remove("show"), 5000);
+}
+
+// =============================================
 // API CALLS
 // =============================================
 async function connectTikTok() {
   const username = document.getElementById("tiktokUsername").value.trim();
-  if (!username) {
-    showNotif("⚠️ Masukkan username TikTok dulu!", "error");
-    return;
-  }
-  
+  if (!username) { showNotif("⚠️ Masukkan username dulu!", "error"); return; }
   showNotif("⏳ Mencoba connect...", "info");
-
   try {
     const res = await fetch("/api/connect", {
       method: "POST",
@@ -1053,7 +1078,7 @@ async function connectTikTok() {
 
 async function disconnectTikTok() {
   await fetch("/api/disconnect", { method: "POST" });
-  setStatus("", "Belum Connect");
+  exitGameMode();
   showNotif("Disconnected", "info");
 }
 
@@ -1063,30 +1088,18 @@ async function newRound() {
 
 async function testGuess() {
   const word = document.getElementById("testWord").value.trim();
-  if (word.length !== 5) {
-    showNotif("⚠️ Kata harus 5 huruf!", "error");
-    return;
-  }
-  
+  if (word.length !== 5) { showNotif("⚠️ Harus 5 huruf!", "error"); return; }
   await fetch("/api/test-guess", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username: "test_user", word })
   });
-  
   document.getElementById("testWord").value = "";
 }
 
-// Enter key for test
-document.getElementById("testWord").addEventListener("keydown", e => {
-  if (e.key === "Enter") testGuess();
-});
+document.getElementById("testWord").addEventListener("keydown", e => { if (e.key === "Enter") testGuess(); });
+document.getElementById("tiktokUsername").addEventListener("keydown", e => { if (e.key === "Enter") connectTikTok(); });
 
-document.getElementById("tiktokUsername").addEventListener("keydown", e => {
-  if (e.key === "Enter") connectTikTok();
-});
-
-// Start WebSocket
 connectWS();
 </script>
 </body>
