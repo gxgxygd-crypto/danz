@@ -317,16 +317,20 @@ console.log(`📚 Total kata valid: ${FILTERED_WORDS.length}`);
 // =============================================
 // GAME STATE
 // =============================================
+const ROUND_DURATION = 60; // detik per ronde
+
 let gameState = {
   secretWord: "",
   guesses: [],
   isActive: false,
-  maxGuesses: 20,
   roundNumber: 0,
   winner: null,
   tiktokUser: "",
-  connected: false
+  connected: false,
+  roundEndTime: null,
 };
+
+let roundTimer = null;
 
 let tiktokConnection = null;
 
@@ -376,18 +380,38 @@ function broadcast(data) {
 }
 
 function startNewRound() {
+  // Clear timer lama
+  if (roundTimer) { clearTimeout(roundTimer); roundTimer = null; }
+
   gameState.secretWord = getRandomWord();
   gameState.guesses = [];
   gameState.isActive = true;
   gameState.winner = null;
   gameState.roundNumber++;
-  console.log(`🎮 Round ${gameState.roundNumber} started! Word: ${gameState.secretWord}`);
+  gameState.roundEndTime = Date.now() + ROUND_DURATION * 1000;
+
+  console.log(`🎮 Round ${gameState.roundNumber} started! Word: ${gameState.secretWord} (${ROUND_DURATION}s)`);
+
   broadcast({
     type: "NEW_ROUND",
     roundNumber: gameState.roundNumber,
     wordLength: gameState.secretWord.length,
-    maxGuesses: gameState.maxGuesses
+    duration: ROUND_DURATION,
+    roundEndTime: gameState.roundEndTime,
   });
+
+  // Timer habis → game over
+  roundTimer = setTimeout(() => {
+    if (!gameState.isActive) return;
+    gameState.isActive = false;
+    broadcast({
+      type: "GAME_OVER",
+      word: gameState.secretWord,
+      totalGuesses: gameState.guesses.length,
+      reason: "timeout"
+    });
+    setTimeout(() => startNewRound(), 8000);
+  }, ROUND_DURATION * 1000);
 }
 
 function processGuess(username, word, nickname = "", avatar = "") {
@@ -400,8 +424,6 @@ function processGuess(username, word, nickname = "", avatar = "") {
     g => g.username === username && g.word === upperWord
   );
   if (alreadyGuessed) return;
-
-  if (gameState.guesses.length >= gameState.maxGuesses) return;
 
   const result = checkGuess(upperWord, gameState.secretWord);
   const isWinner = result.every(r => r === "correct");
@@ -424,14 +446,9 @@ function processGuess(username, word, nickname = "", avatar = "") {
   if (isWinner) {
     gameState.winner = username;
     gameState.isActive = false;
+    if (roundTimer) { clearTimeout(roundTimer); roundTimer = null; }
     setTimeout(() => {
       broadcast({ type: "GAME_WON", winner: username, nickname, avatar, word: gameState.secretWord, totalGuesses: gameState.guesses.length });
-    }, 500);
-    setTimeout(() => startNewRound(), 8000);
-  } else if (gameState.guesses.length >= gameState.maxGuesses) {
-    gameState.isActive = false;
-    setTimeout(() => {
-      broadcast({ type: "GAME_OVER", word: gameState.secretWord, totalGuesses: gameState.guesses.length });
     }, 500);
     setTimeout(() => startNewRound(), 8000);
   }
@@ -537,6 +554,7 @@ app.get("/api/state", (req, res) => {
   res.json({
     ...gameState,
     totalWords: FILTERED_WORDS.length,
+    duration: ROUND_DURATION,
     secretWord: gameState.isActive ? "?????" : gameState.secretWord
   });
 });
