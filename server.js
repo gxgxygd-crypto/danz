@@ -414,21 +414,27 @@ function startNewRound() {
   }, ROUND_DURATION * 1000);
 }
 
-function processGuess(username, word, nickname = "", avatar = "") {
+function processGuess(userId, username, word, nickname = "", avatar = "") {
   if (!gameState.isActive) return;
   if (word.length !== 5) return;
 
   const upperWord = word.toUpperCase();
 
+  // Cek duplikat pakai userId (unik per akun) + kata yang sama
+  // Sehingga beda user boleh nebak kata yang sama
   const alreadyGuessed = gameState.guesses.some(
-    g => g.username === username && g.word === upperWord
+    g => g.userId === userId && g.word === upperWord
   );
-  if (alreadyGuessed) return;
+  if (alreadyGuessed) {
+    console.log(`⏭️  Skip duplikat: [${username}] sudah nebak "${upperWord}"`);
+    return;
+  }
 
   const result = checkGuess(upperWord, gameState.secretWord);
   const isWinner = result.every(r => r === "correct");
 
   const guessData = {
+    userId,
     username,
     nickname: nickname || username,
     avatar,
@@ -439,7 +445,7 @@ function processGuess(username, word, nickname = "", avatar = "") {
   };
 
   gameState.guesses.push(guessData);
-  console.log(`💬 ${username}: ${upperWord} → ${result.join(", ")}${isWinner ? " 🏆 WINNER!" : ""}`);
+  console.log(`💬 [${username}] ${upperWord} → ${result.join(",")}${isWinner ? " 🏆 WINNER!" : ""}`);
 
   broadcast({ type: "NEW_GUESS", guess: guessData, totalGuesses: gameState.guesses.length });
 
@@ -501,18 +507,32 @@ async function connectTikTok(username, sessionId = "") {
     broadcast({ type: "TIKTOK_ERROR", message: err.message });
   });
 
+  // Set untuk deduplikasi event duplikat dari TikTok
+  const recentEvents = new Set();
+
   connection.on("chat", data => {
     const comment = data.comment?.trim() || "";
-    const username = data.uniqueId || "anon";
-    const nickname = data.nickname || data.uniqueId || "anon";
-    const avatar = data.profilePictureUrl || "";
+    if (!comment) return;
 
-    // Bersihkan: hapus invisible unicode, emoji, aksen, karakter non-huruf
+    // userId numerik = identifier paling unik dari TikTok
+    // uniqueId = @handle (bisa null untuk akun tertentu)
+    const userId   = String(data.userId || data.openId || data.uniqueId || `uid_${Date.now()}_${Math.random()}`);
+    const username = data.uniqueId || String(data.userId || "anon");
+    const nickname = data.nickname || username;
+    const avatar   = data.profilePictureUrl || "";
+
+    // Deduplikasi: TikTok kadang kirim event yang sama 2x dalam waktu singkat
+    const eventKey = `${userId}::${comment}`;
+    if (recentEvents.has(eventKey)) return;
+    recentEvents.add(eventKey);
+    setTimeout(() => recentEvents.delete(eventKey), 3000);
+
+    // Bersihkan komentar: hapus emoji, aksen, invisible chars, dll
     const cleaned = comment
-      .normalize("NFD")                            // pisahkan aksen dari huruf (e.g. é → e + aksen)
-      .replace(/[\u0300-\u036f]/g, "")           // hapus aksen
-      .replace(/[\u200B-\u200D\uFEFF\u00AD]/g, "") // hapus zero-width & soft-hyphen dari TikTok
-      .replace(/[^a-zA-Z]/g, "")                   // hapus emoji, angka, spasi, simbol
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[\u200B-\u200D\uFEFF\u00AD]/g, "")
+      .replace(/[^a-zA-Z]/g, "")
       .toUpperCase();
 
     const isGuess = cleaned.length === 5;
@@ -520,8 +540,8 @@ async function connectTikTok(username, sessionId = "") {
     broadcast({ type: "CHAT_MESSAGE", username, nickname, avatar, message: comment, isGuess });
 
     if (isGuess) {
-      console.log(`\u{1F524} Raw: "${comment}" → Cleaned: "${cleaned}"`);
-      processGuess(username, cleaned, nickname, avatar);
+      console.log(`🔤 [${username} | uid:${userId}] Raw:"${comment}" → "${cleaned}"`);
+      processGuess(userId, username, cleaned, nickname, avatar);
     }
   });
 
@@ -565,7 +585,9 @@ app.post("/api/new-round", (req, res) => {
 
 app.post("/api/test-guess", (req, res) => {
   const { username, word } = req.body;
-  processGuess(username || "test_user", word);
+  // Pakai timestamp agar test bisa berulang dengan kata yang sama
+  const testId = `test_${Date.now()}`;
+  processGuess(testId, username || "test_user", word, username || "test_user", "");
   res.json({ success: true });
 });
 
