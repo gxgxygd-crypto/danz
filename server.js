@@ -420,15 +420,17 @@ function processGuess(userId, username, word, nickname = "", avatar = "") {
 
   const upperWord = word.toUpperCase();
 
-  // Cek duplikat pakai userId (unik per akun) + kata yang sama
-  // Sehingga beda user boleh nebak kata yang sama
+  // Cek duplikat: userId yang sama + kata yang sama → skip
+  // Beda userId boleh nebak kata yang sama
   const alreadyGuessed = gameState.guesses.some(
     g => g.userId === userId && g.word === upperWord
   );
   if (alreadyGuessed) {
-    console.log(`⏭️  Skip duplikat: [${username}] sudah nebak "${upperWord}"`);
+    console.log(`⏭️  Skip: [${username}|${userId}] sudah nebak "${upperWord}"`);
     return;
   }
+  
+  console.log(`✅ Proses: [${username}|${userId}] "${upperWord}" (#${gameState.guesses.length + 1})`);
 
   const result = checkGuess(upperWord, gameState.secretWord);
   const isWinner = result.every(r => r === "correct");
@@ -507,40 +509,55 @@ async function connectTikTok(username, sessionId = "") {
     broadcast({ type: "TIKTOK_ERROR", message: err.message });
   });
 
-  // Set untuk deduplikasi event duplikat dari TikTok
-  const recentEvents = new Set();
+  // Deduplikasi event duplikat dari TikTok (simpan msgId yang sudah diproses)
+  const processedMsgIds = new Set();
 
   connection.on("chat", data => {
     const comment = data.comment?.trim() || "";
     if (!comment) return;
 
-    // userId numerik = identifier paling unik dari TikTok
-    // uniqueId = @handle (bisa null untuk akun tertentu)
-    const userId   = String(data.userId || data.openId || data.uniqueId || `uid_${Date.now()}_${Math.random()}`);
-    const username = data.uniqueId || String(data.userId || "anon");
+    // ⚠️  PENTING: jangan pakai || untuk userId karena 0 = falsy tapi valid!
+    // Cek null/undefined secara eksplisit
+    const rawUserId  = data.userId  != null ? String(data.userId)  : null;
+    const rawOpenId  = data.openId  != null ? String(data.openId)  : null;
+    const rawUniqueId = data.uniqueId != null ? String(data.uniqueId) : null;
+
+    // Pilih identifier terbaik, fallback ke random hanya kalau semua null
+    const userId   = rawUserId || rawOpenId || rawUniqueId || `guest_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const username = rawUniqueId || rawUserId || "anon";
     const nickname = data.nickname || username;
     const avatar   = data.profilePictureUrl || "";
 
-    // Deduplikasi: TikTok kadang kirim event yang sama 2x dalam waktu singkat
-    const eventKey = `${userId}::${comment}`;
-    if (recentEvents.has(eventKey)) return;
-    recentEvents.add(eventKey);
-    setTimeout(() => recentEvents.delete(eventKey), 3000);
+    // Deduplikasi pakai msgId kalau ada (paling akurat), fallback ke userId+comment
+    const msgId = data.msgId != null ? String(data.msgId) : `${userId}::${comment}::${Date.now()}`;
+    
+    // Hanya skip kalau msgId persis sama (bukan berdasarkan konten)
+    if (data.msgId != null && processedMsgIds.has(msgId)) {
+      console.log(`⏭️  Skip duplikat msgId: ${msgId}`);
+      return;
+    }
+    if (data.msgId != null) {
+      processedMsgIds.add(msgId);
+      // Hapus setelah 10 detik untuk hemat memori
+      setTimeout(() => processedMsgIds.delete(msgId), 10000);
+    }
 
     // Bersihkan komentar: hapus emoji, aksen, invisible chars, dll
     const cleaned = comment
       .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[\u200B-\u200D\uFEFF\u00AD]/g, "")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[​-‍﻿­]/g, "")
       .replace(/[^a-zA-Z]/g, "")
       .toUpperCase();
 
     const isGuess = cleaned.length === 5;
 
+    // Log semua chat untuk debugging
+    console.log(`💬 [uid:${userId} | @${username}] "${comment}"${isGuess ? ` → "${cleaned}" ✅` : ""}`);
+
     broadcast({ type: "CHAT_MESSAGE", username, nickname, avatar, message: comment, isGuess });
 
     if (isGuess) {
-      console.log(`🔤 [${username} | uid:${userId}] Raw:"${comment}" → "${cleaned}"`);
       processGuess(userId, username, cleaned, nickname, avatar);
     }
   });
