@@ -317,7 +317,7 @@ console.log(`📚 Total kata valid: ${FILTERED_WORDS.length}`);
 // =============================================
 // GAME STATE
 // =============================================
-const ROUND_DURATION = 60; // detik per ronde
+const ROUND_DURATION = 120; // 2 menit
 
 let gameState = {
   secretWord: "",
