@@ -710,6 +710,24 @@
       <input type="text" class="tiktok-input" id="tiktokUsername" placeholder="@username_kamu">
     </div>
 
+    <div class="input-group">
+      <label style="display:flex;align-items:center;justify-content:space-between">
+        <span>Session ID <span style="color:#444;font-weight:normal">(opsional)</span></span>
+        <a href="#" onclick="showSessionHelp();return false;" style="color:var(--tiktok2);font-size:11px;text-decoration:none">Cara dapat? →</a>
+      </label>
+      <input type="password" class="tiktok-input" id="sessionId" placeholder="Paste sessionid cookie di sini" style="font-size:13px">
+    </div>
+
+    <div id="sessionHelp" style="display:none;background:#111;border:1px solid #333;border-radius:8px;padding:12px;font-size:12px;color:var(--muted);line-height:1.8">
+      <strong style="color:var(--text)">Cara dapat Session ID:</strong><br>
+      1. Buka <strong style="color:var(--tiktok2)">tiktok.com</strong> di browser & login<br>
+      2. Tekan <strong>F12</strong> → tab <strong>Application</strong><br>
+      3. Klik <strong>Cookies → tiktok.com</strong><br>
+      4. Cari nama <strong style="color:var(--tiktok)">sessionid</strong><br>
+      5. Copy nilai di kolom <strong>Value</strong><br><br>
+      <span style="color:#555">Session ID diperlukan jika muncul error "invalid session"</span>
+    </div>
+
     <button class="btn btn-primary" onclick="connectTikTok()">🔴 Connect Live</button>
     <button class="btn btn-secondary" onclick="disconnectTikTok()">Disconnect</button>
 
@@ -1120,8 +1138,15 @@ renderKeyboard();
 // =============================================
 // API CALLS
 // =============================================
+function showSessionHelp() {
+  const el = document.getElementById("sessionHelp");
+  el.style.display = el.style.display === "none" ? "block" : "none";
+}
+
 async function connectTikTok() {
   const username = document.getElementById("tiktokUsername").value.trim();
+  const sessionId = document.getElementById("sessionId").value.trim();
+
   if (!username) {
     showNotif("⚠️ Masukkan username TikTok dulu!", "error");
     return;
@@ -1133,7 +1158,7 @@ async function connectTikTok() {
     const res = await fetch("/api/connect", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username })
+      body: JSON.stringify({ username, sessionId })
     });
     const data = await res.json();
     if (!data.success) showNotif(`❌ ${data.message}`, "error");
