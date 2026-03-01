@@ -499,10 +499,21 @@ async function connectTikTok(username) {
     const nickname = data.nickname || data.uniqueId || "anon";
     const avatar = data.profilePictureUrl || "";
 
-    broadcast({ type: "CHAT_MESSAGE", username, nickname, avatar, message: comment, isGuess: /^[a-zA-Z]{5}$/.test(comment) });
+    // Bersihkan: hapus invisible unicode, emoji, aksen, karakter non-huruf
+    const cleaned = comment
+      .normalize("NFD")                            // pisahkan aksen dari huruf (e.g. é → e + aksen)
+      .replace(/[\u0300-\u036f]/g, "")           // hapus aksen
+      .replace(/[\u200B-\u200D\uFEFF\u00AD]/g, "") // hapus zero-width & soft-hyphen dari TikTok
+      .replace(/[^a-zA-Z]/g, "")                   // hapus emoji, angka, spasi, simbol
+      .toUpperCase();
 
-    if (/^[a-zA-Z]{5}$/.test(comment)) {
-      processGuess(username, comment, nickname, avatar);
+    const isGuess = cleaned.length === 5;
+
+    broadcast({ type: "CHAT_MESSAGE", username, nickname, avatar, message: comment, isGuess });
+
+    if (isGuess) {
+      console.log(`\u{1F524} Raw: "${comment}" → Cleaned: "${cleaned}"`);
+      processGuess(username, cleaned, nickname, avatar);
     }
   });
 
