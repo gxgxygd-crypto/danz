@@ -509,57 +509,39 @@ async function connectTikTok(username, sessionId = "") {
     broadcast({ type: "TIKTOK_ERROR", message: err.message });
   });
 
-  // Deduplikasi event duplikat dari TikTok (simpan msgId yang sudah diproses)
-  const processedMsgIds = new Set();
-
   connection.on("chat", data => {
-    const comment = data.comment?.trim() || "";
+    const comment = (data.comment || "").trim();
     if (!comment) return;
 
-    // ⚠️  PENTING: jangan pakai || untuk userId karena 0 = falsy tapi valid!
-    // Cek null/undefined secara eksplisit
-    const rawUserId  = data.userId  != null ? String(data.userId)  : null;
-    const rawOpenId  = data.openId  != null ? String(data.openId)  : null;
-    const rawUniqueId = data.uniqueId != null ? String(data.uniqueId) : null;
+    // uniqueId = @handle TikTok, SELALU unik per akun, tidak pernah "0"
+    // Ini identifier terbaik dan paling konsisten
+    const uniqueId = data.uniqueId ? String(data.uniqueId) : null;
 
-    // Pilih identifier terbaik, fallback ke random hanya kalau semua null
-    const userId   = rawUserId || rawOpenId || rawUniqueId || `guest_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const username = rawUniqueId || rawUserId || "anon";
-    const nickname = data.nickname || username;
-    const avatar   = data.profilePictureUrl || "";
+    // userId numerik dari TikTok — hati-hati: bisa bernilai 0 untuk guest
+    // Jadi hanya pakai kalau > 0
+    const numericId = (data.userId && Number(data.userId) > 0) ? String(data.userId) : null;
 
-    // Deduplikasi pakai msgId kalau ada (paling akurat), fallback ke userId+comment
-    const msgId = data.msgId != null ? String(data.msgId) : `${userId}::${comment}::${Date.now()}`;
-    
-    // Hanya skip kalau msgId persis sama (bukan berdasarkan konten)
-    if (data.msgId != null && processedMsgIds.has(msgId)) {
-      console.log(`⏭️  Skip duplikat msgId: ${msgId}`);
-      return;
-    }
-    if (data.msgId != null) {
-      processedMsgIds.add(msgId);
-      // Hapus setelah 10 detik untuk hemat memori
-      setTimeout(() => processedMsgIds.delete(msgId), 10000);
-    }
+    // Pilih identifier: uniqueId (@handle) > numericId > random
+    // Jangan pakai "0" sebagai identifier karena semua guest share nilai yang sama
+    const userId   = uniqueId || numericId || `guest_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+    const username = uniqueId || numericId || "anon";
+    const nickname = data.nickname ? String(data.nickname) : username;
+    const avatar   = data.profilePictureUrl ? String(data.profilePictureUrl) : "";
 
-    // Bersihkan komentar: hapus emoji, aksen, invisible chars, dll
+    // Bersihkan komentar: hapus emoji, aksen, spasi, simbol — sisakan huruf saja
     const cleaned = comment
       .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "")
-      .replace(/[​-‍﻿­]/g, "")
-      .replace(/[^a-zA-Z]/g, "")
+      .replace(/[̀-ͯ]/g, "")   // hapus aksen
+      .replace(/[^a-zA-Z]/g, "")          // hanya huruf A-Z
       .toUpperCase();
 
     const isGuess = cleaned.length === 5;
 
-    // Log semua chat untuk debugging
-    console.log(`💬 [uid:${userId} | @${username}] "${comment}"${isGuess ? ` → "${cleaned}" ✅` : ""}`);
+    console.log(`💬 @${username} (id:${userId}): "${comment}"${isGuess ? ` → "${cleaned}" ✅` : ` (${cleaned.length} huruf, skip)`}`);
 
     broadcast({ type: "CHAT_MESSAGE", username, nickname, avatar, message: comment, isGuess });
 
-    if (isGuess) {
-      processGuess(userId, username, cleaned, nickname, avatar);
-    }
+    if (isGuess) processGuess(userId, username, cleaned, nickname, avatar);
   });
 
   try {
