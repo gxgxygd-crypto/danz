@@ -457,7 +457,7 @@ function processGuess(username, word, nickname = "", avatar = "") {
 // =============================================
 // TIKTOK LIVE CONNECTION
 // =============================================
-async function connectTikTok(username) {
+async function connectTikTok(username, sessionId = "") {
   if (tiktokConnection) {
     try { tiktokConnection.disconnect(); } catch(e) {}
     tiktokConnection = null;
@@ -466,13 +466,21 @@ async function connectTikTok(username) {
   gameState.tiktokUser = username;
   gameState.connected = false;
 
-  const connection = new WebcastPushConnection(username, {
+  const options = {
     processInitialData: false,
     enableExtendedGiftInfo: false,
     enableWebsocketUpgrade: true,
     requestPollingIntervalMs: 2000,
     clientParams: { app_language: "id-ID", device_platform: "web" }
-  });
+  };
+
+  // Tambah sessionId kalau ada — diperlukan untuk akun yang privat atau butuh autentikasi
+  if (sessionId && sessionId.trim()) {
+    options.sessionId = sessionId.trim();
+    console.log("🔑 Menggunakan Session ID untuk autentikasi");
+  }
+
+  const connection = new WebcastPushConnection(username, options);
 
   tiktokConnection = connection;
 
@@ -530,10 +538,10 @@ async function connectTikTok(username) {
 // REST API
 // =============================================
 app.post("/api/connect", async (req, res) => {
-  const { username } = req.body;
+  const { username, sessionId } = req.body;
   if (!username) return res.json({ success: false, message: "Username diperlukan" });
   try {
-    connectTikTok(username.replace("@", ""));
+    connectTikTok(username.replace("@", ""), sessionId || "");
     res.json({ success: true, message: `Mencoba connect ke @${username}...` });
   } catch(e) {
     res.json({ success: false, message: e.message });
