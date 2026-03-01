@@ -7,14 +7,14 @@
 <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0a0a0a;
-    --surface: #141414;
-    --border: #2a2a2a;
-    --text: #f0f0f0;
-    --muted: #666;
+    --bg: #0d1117;
+    --surface: #161b27;
+    --border: #1e2d45;
+    --text: #e8eef8;
+    --muted: #5a7090;
     --correct: #16a34a;
     --present: #d97706;
-    --absent: #374151;
+    --absent: #1e2d45;
     --tiktok: #ff0050;
     --tiktok2: #00f2ea;
     --accent: #ff0050;
@@ -23,7 +23,7 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
-    background: var(--bg);
+    background: #0d1117;
     color: var(--text);
     font-family: 'Noto Sans', sans-serif;
     min-height: 100vh;
@@ -51,9 +51,9 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 24px;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface);
+    padding: 14px 24px;
+    border-bottom: 1px solid #1e2d45;
+    background: #0a0f1c;
     position: sticky;
     top: 0;
     z-index: 100;
@@ -123,12 +123,13 @@
 
   /* Connect Panel */
   .connect-panel {
-    border-right: 1px solid var(--border);
+    border-right: 1px solid #1e2d45;
     padding: 24px;
     display: flex;
     flex-direction: column;
     gap: 20px;
     overflow-y: auto;
+    background: #080d18;
   }
 
   .panel-title {
@@ -154,8 +155,8 @@
   }
 
   .tiktok-input {
-    background: var(--border);
-    border: 1px solid #333;
+    background: #0d1117;
+    border: 1px solid #1e2d45;
     color: var(--text);
     padding: 12px 16px;
     border-radius: 8px;
@@ -167,7 +168,8 @@
 
   .tiktok-input:focus {
     outline: none;
-    border-color: var(--tiktok);
+    border-color: #3a6abf;
+    box-shadow: 0 0 0 2px rgba(58,106,191,0.2);
   }
 
   .btn {
@@ -217,7 +219,8 @@
   }
 
   .stat-box {
-    background: var(--border);
+    background: #0d1117;
+    border: 1px solid #1e2d45;
     border-radius: 8px;
     padding: 14px;
     text-align: center;
@@ -272,9 +275,9 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 32px 24px;
+    padding: 24px 24px;
     overflow-y: auto;
-    background: radial-gradient(ellipse at 50% 0%, rgba(255,0,80,0.05) 0%, transparent 60%);
+    background: radial-gradient(ellipse at 50% 0%, rgba(0,60,120,0.08) 0%, transparent 60%);
   }
 
   .round-info {
@@ -313,10 +316,10 @@
   .kb-key {
     width: 46px;
     height: 46px;
-    background: var(--surface);
-    border: 1px solid var(--border);
+    background: #161b27;
+    border: 1px solid #1e2d45;
     border-radius: 7px;
-    color: var(--text);
+    color: #8aadc8;
     font-family: 'Black Han Sans', sans-serif;
     font-size: 15px;
     display: flex;
@@ -365,79 +368,118 @@
   /* Guesses feed */
   .guesses-feed {
     width: 100%;
-    max-width: 600px;
+    max-width: 640px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
   }
 
   .guess-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 10px 14px;
-    animation: fadeIn 0.3s ease;
+    gap: 12px;
+    background: #1a2d4a;
+    border: none;
+    border-radius: 14px;
+    padding: 12px 16px;
+    animation: fadeUp 0.25s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .guess-row::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: #2a5a90;
+    border-radius: 14px 0 0 14px;
   }
 
   .guess-row.winner {
-    border-color: var(--correct);
-    background: rgba(22,163,74,0.1);
+    background: linear-gradient(135deg, #1a4a2a, #124a30);
+    box-shadow: 0 0 20px rgba(22,163,74,0.4);
   }
 
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateX(-10px); }
-    to { opacity: 1; transform: translateX(0); }
+  .guess-row.winner::before {
+    background: var(--correct);
+    width: 5px;
+    box-shadow: 0 0 8px var(--correct);
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 
   .guess-num {
-    font-size: 11px;
-    color: var(--muted);
-    width: 24px;
+    font-family: 'Black Han Sans', sans-serif;
+    font-size: 12px;
+    color: #4a80a0;
+    width: 22px;
     text-align: center;
     flex-shrink: 0;
   }
 
-  .guess-username {
-    font-size: 13px;
-    color: var(--tiktok2);
+  /* Avatar dalam card */
+  .guess-avatar, .guess-avatar-placeholder {
+    width: 44px !important;
+    height: 44px !important;
+    font-size: 18px !important;
+  }
+
+  /* Nama + kata gede */
+  .guess-info {
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .guess-username-small {
+    font-size: 11px;
+    color: #6aaabf;
     font-weight: 600;
-    width: 120px;
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    margin-bottom: 2px;
+  }
+
+  .guess-word-big {
+    font-family: 'Black Han Sans', sans-serif;
+    font-size: 26px;
+    color: #ffffff;
+    letter-spacing: 1px;
+    line-height: 1;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Tiles kecil di kanan */
+  .guess-tiles {
+    display: flex;
+    gap: 3px;
     flex-shrink: 0;
   }
 
-  .guess-tiles {
-    display: flex;
-    gap: 4px;
-    flex: 1;
-  }
-
   .tile {
-    width: 52px;
-    height: 52px;
-    border-radius: 7px;
+    width: 30px;
+    height: 30px;
+    border-radius: 5px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-family: 'Black Han Sans', sans-serif;
-    font-size: 22px;
-    letter-spacing: 0;
+    font-size: 12px;
     transition: all 0.3s;
   }
 
-  .tile.correct { background: var(--correct); color: white; }
-  .tile.present { background: var(--present); color: white; }
-  .tile.absent { background: var(--absent); color: #888; }
+  .tile.correct { background: #16a34a; color: white; }
+  .tile.present { background: #d97706; color: white; }
+  .tile.absent  { background: #1e2d45; color: #5a7090; border: 1px solid #2a5080; }
 
   .guess-time {
-    font-size: 11px;
-    color: var(--muted);
-    flex-shrink: 0;
+    display: none;
   }
 
   .empty-state {
@@ -453,10 +495,11 @@
 
   /* Chat feed panel */
   .chat-panel {
-    border-left: 1px solid var(--border);
+    border-left: 1px solid #1e2d45;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    background: #080d18;
   }
 
   .chat-header {
@@ -481,17 +524,17 @@
   .chat-feed::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
   .chat-item {
-    background: var(--surface);
+    background: #161b27;
     border-radius: 8px;
     padding: 8px 12px;
     font-size: 13px;
-    border: 1px solid transparent;
+    border: 1px solid #1e2d45;
     animation: fadeIn 0.2s ease;
   }
 
   .chat-item.word-guess {
-    border-color: rgba(0,242,234,0.3);
-    background: rgba(0,242,234,0.05);
+    border-color: #2a5a90;
+    background: #161b27;
   }
 
   .chat-item .chat-user {
@@ -618,50 +661,34 @@
 
   /* Avatars */
   .guess-avatar, .chat-avatar {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     object-fit: cover;
-    border: 2px solid var(--border);
+    border: 2px solid #2a5080;
     flex-shrink: 0;
   }
 
   .guess-avatar-placeholder, .chat-avatar-placeholder {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--tiktok), var(--tiktok2));
+    background: linear-gradient(135deg, #1e4a8a, #1a7abf);
     display: flex;
     align-items: center;
     justify-content: center;
     font-family: "Black Han Sans", sans-serif;
-    font-size: 16px;
+    font-size: 18px;
     color: white;
     flex-shrink: 0;
   }
 
   .guess-userinfo {
-    width: 130px;
-    flex-shrink: 0;
-    overflow: hidden;
+    display: none;
   }
 
-  .guess-nickname {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .guess-handle {
-    font-size: 11px;
-    color: var(--tiktok2);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+  .guess-nickname { display: none; }
+  .guess-handle   { display: none; }
 
   .chat-header-row {
     display: flex;
@@ -784,9 +811,9 @@
 
     <div class="winner-banner" id="winnerBanner">
       <h2>🏆 MENANG!</h2>
-      <div id="winnerName" style="color:var(--muted);font-size:14px;margin-top:4px"></div>
-      <div class="winner-word" id="winnerWord"></div>
-      <div style="font-size:12px;color:var(--muted);margin-top:12px">Ronde baru dalam 8 detik...</div>
+      <div id="winnerName" style="color:#4ade80;font-size:15px;margin-top:4px;font-weight:700"></div>
+      <div class="winner-word" id="winnerWord" style="font-size:36px;letter-spacing:8px;color:var(--tiktok2);font-family:'Black Han Sans',sans-serif;margin-top:4px"></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px">Ronde baru dalam 8 detik...</div>
     </div>
 
     <div class="keyboard" id="keyboard"></div>
@@ -984,16 +1011,15 @@ function addGuessRow(guess, animate = true) {
   row.innerHTML = `
     <div class="guess-num">#${guess.guessNumber}</div>
     ${avatarHtml}
-    <div class="guess-userinfo">
-      <div class="guess-nickname">${guess.nickname || guess.username}</div>
-      <div class="guess-handle">@${guess.username}</div>
+    <div class="guess-info">
+      <div class="guess-username-small">${guess.nickname || guess.username}</div>
+      <div class="guess-word-big">${guess.word}</div>
     </div>
     <div class="guess-tiles">
       ${guess.word.split("").map((letter, i) => `
         <div class="tile ${guess.result[i]}">${letter}</div>
       `).join("")}
     </div>
-    <div class="guess-time">${time}</div>
   `;
 
   feed.appendChild(row);
