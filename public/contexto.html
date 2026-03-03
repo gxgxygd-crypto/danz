@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Contexto Live × TikTok Live</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+:root {
+  --bg:      #0d1117;
+  --card:    #1a3a2a;
+  --card2:   #162d20;
+  --border:  #1e3a2a;
+  --text:    #e8f5ee;
+  --muted:   #5a8a6a;
+  --green:   #16a34a;
+  --teal:    #00c896;
+  --red:     #ff0050;
+  --yellow:  #f59e0b;
+  --blue:    #3b82f6;
+  --rank-bg: #ffffff;
+  --rank-fg: #0d1117;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== HEADER ===== */
+.header {
+  background: #111a14;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.live-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--red);
+  letter-spacing: 1px;
+}
+
+.live-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--red);
+  animation: blink 1.2s infinite;
+}
+
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+.title {
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  color: var(--text);
+}
+
+.reload-btn {
+  background: #1e3a2a;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+
+.reload-btn:hover { border-color: var(--green); color: var(--text); }
+
+/* Stats bar */
+.stats-bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  padding-right: 14px;
+}
+
+.stat-label { color: var(--muted); }
+.stat-value { font-weight: 700; color: var(--text); }
+.stat-value.green  { color: var(--teal); }
+.stat-value.yellow { color: var(--yellow); }
+
+.stat-divider {
+  width: 1px; height: 16px;
+  background: var(--border);
+  margin-right: 14px;
+}
+
+.connect-status {
+  margin-left: auto;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.connect-status.connected {
+  background: rgba(0,200,150,0.1);
+  border-color: var(--teal);
+  color: var(--teal);
+}
+
+.connect-status.disconnected {
+  background: rgba(255,0,80,0.1);
+  border-color: var(--red);
+  color: var(--red);
+}
+
+/* ===== TIMER BAR ===== */
+.timer-wrap {
+  background: #0a1510;
+  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.timer-num {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--teal);
+  width: 36px;
+  transition: color 0.3s;
+  flex-shrink: 0;
+}
+
+.timer-num.warn   { color: var(--yellow); }
+.timer-num.danger { color: var(--red); animation: blink 0.5s infinite; }
+
+.timer-bar-outer {
+  flex: 1;
+  height: 5px;
+  background: #1e3a2a;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.timer-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--green), var(--teal));
+  border-radius: 3px;
+  transition: width 0.9s linear, background 0.3s;
+}
+
+.timer-bar-fill.warn   { background: linear-gradient(90deg, #92400e, var(--yellow)); }
+.timer-bar-fill.danger { background: var(--red); }
+
+.timer-label { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+
+/* ===== CONNECT MODAL ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: flex-end;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal-overlay.hidden { display: none; }
+
+.modal-card {
+  background: #111a14;
+  border: 1px solid var(--border);
+  border-radius: 20px 20px 0 0;
+  padding: 24px 20px 32px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 800;
+  text-align: center;
+  background: linear-gradient(135deg, var(--green), var(--teal));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.modal-input {
+  background: #0a1510;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 13px 14px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-family: 'Inter', sans-serif;
+  width: 100%;
+  outline: none;
+}
+
+.modal-input:focus { border-color: var(--green); }
+
+.modal-btn {
+  padding: 14px;
+  border-radius: 10px;
+  border: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  transition: opacity 0.2s;
+}
+
+.modal-btn:active { opacity: 0.8; }
+.btn-connect  { background: var(--red); color: white; }
+.btn-cancel   { background: #1e3a2a; color: var(--muted); margin-top: -4px; }
+
+.session-toggle {
+  font-size: 12px;
+  color: var(--teal);
+  text-align: right;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.session-help {
+  font-size: 11px;
+  color: var(--muted);
+  background: #0a1510;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  line-height: 1.8;
+  display: none;
+}
+
+.session-help.show { display: block; }
+.session-help strong { color: var(--text); }
+
+/* ===== NOTIF ===== */
+.notif-bar {
+  padding: 8px 14px;
+  font-size: 13px;
+  display: none;
+  flex-shrink: 0;
+}
+
+.notif-bar.show { display: block; }
+.notif-bar.error   { background: rgba(255,0,80,0.12); color: #ff6b8a; border-bottom: 1px solid rgba(255,0,80,0.2); }
+.notif-bar.success { background: rgba(0,200,150,0.1);  color: var(--teal);  border-bottom: 1px solid rgba(0,200,150,0.2); }
+.notif-bar.info    { background: rgba(59,130,246,0.1); color: #93c5fd; border-bottom: 1px solid rgba(59,130,246,0.2); }
+
+/* ===== WINNER BANNER ===== */
+.winner-banner {
+  display: none;
+  background: linear-gradient(135deg, #0d3320, #0a2510);
+  border: 1px solid var(--green);
+  margin: 10px 12px;
+  border-radius: 14px;
+  padding: 14px 16px;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  animation: slideDown 0.4s ease;
+}
+
+.winner-banner.show { display: flex; }
+
+@keyframes slideDown {
+  from { opacity:0; transform:translateY(-10px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+.winner-emoji { font-size: 28px; flex-shrink: 0; }
+
+.winner-info { flex: 1; }
+.winner-label { font-size: 11px; color: var(--green); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+.winner-name  { font-size: 15px; font-weight: 800; color: var(--text); }
+.winner-timer { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+.winner-word {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--teal);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+/* ===== GUESSES LIST ===== */
+.guesses-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 10px 14px 6px;
+  flex-shrink: 0;
+}
+
+.guesses-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.guesses-list::-webkit-scrollbar { width: 3px; }
+.guesses-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ===== GUESS CARD ===== */
+.guess-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--card);
+  border-radius: 12px;
+  padding: 10px 12px;
+  animation: slideUp 0.2s ease;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  transition: border-color 0.3s;
+}
+
+.guess-card.winner-card {
+  background: linear-gradient(135deg, #1a4a30, #0f3520);
+  border-color: var(--green);
+  box-shadow: 0 0 16px rgba(22,163,74,0.25);
+}
+
+.guess-card.best-card {
+  background: linear-gradient(135deg, #1a2a4a, #0f1e3a);
+  border-color: var(--blue);
+}
+
+@keyframes slideUp {
+  from { opacity:0; transform:translateY(8px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+/* Avatar */
+.guess-avatar {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid #2a5040;
+}
+
+.guess-avatar-ph {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 800; color: white;
+  flex-shrink: 0;
+}
+
+/* User info + word */
+.guess-body { flex: 1; overflow: hidden; }
+
+.guess-username {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 1px;
+}
+
+.guess-word {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+  text-transform: capitalize;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.1;
+}
+
+.guess-word.winner-word-text { color: #4ade80; }
+
+/* Rank badge */
+.rank-badge {
+  background: var(--rank-bg);
+  color: var(--rank-fg);
+  font-size: 15px;
+  font-weight: 900;
+  border-radius: 8px;
+  min-width: 46px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: -0.5px;
+}
+
+.rank-badge.rank-top    { background: #fbbf24; color: #000; }
+.rank-badge.rank-close  { background: #86efac; color: #000; }
+.rank-badge.rank-mid    { background: #6ee7b7; color: #000; }
+.rank-badge.rank-far    { background: #e2e8f0; color: #000; }
+.rank-badge.rank-winner { background: var(--green); color: white; font-size: 18px; }
+.rank-badge.rank-unknown { background: #374151; color: #9ca3af; font-size: 12px; }
+
+/* Empty state */
+.empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  gap: 10px;
+  padding: 40px 20px;
+}
+
+.empty-icon { font-size: 40px; }
+.empty-text { font-size: 14px; text-align: center; line-height: 1.6; }
+
+/* ===== PANEL ADMIN (bottom) ===== */
+.admin-panel {
+  background: #0a1510;
+  border-top: 1px solid var(--border);
+  padding: 10px 14px;
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.admin-input {
+  flex: 1;
+  background: #111d17;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+}
+
+.admin-input:focus { border-color: var(--green); }
+
+.admin-btn {
+  background: var(--green);
+  border: none;
+  color: white;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 18px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity 0.2s;
+}
+
+.admin-btn:active { opacity: 0.7; }
+
+.admin-new-btn {
+  background: #1e3a2a;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.admin-new-btn:hover { border-color: var(--green); color: var(--text); }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-top">
+    <div class="live-badge">
+      <div class="live-dot"></div>
+      LIVE
+    </div>
+    <div class="title"><a href="/" style="font-size:18px;text-decoration:none;margin-right:6px;color:#5a8a6a">←</a>CONTEXTO LIVE</div>
+    <button class="reload-btn" onclick="location.reload()">⟳ Reload</button>
+  </div>
+  <div class="stats-bar">
+    <div class="stat-item">
+      <span class="stat-label">Tebakan:</span>
+      <span class="stat-value green" id="statTotal">0</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <span class="stat-label">Terdekat:</span>
+      <span class="stat-value yellow" id="statBest">–</span>
+    </div>
+    <div class="connect-status disconnected" id="connectStatus" onclick="toggleConnectModal()">
+      Sambungkan
+    </div>
+  </div>
+</div>
+
+<!-- TIMER -->
+<div class="timer-wrap">
+  <div class="timer-num" id="timerNum">--</div>
+  <div class="timer-bar-outer">
+    <div class="timer-bar-fill" id="timerFill" style="width:100%"></div>
+  </div>
+  <div class="timer-label">detik</div>
+</div>
+
+<!-- NOTIF -->
+<div class="notif-bar" id="notifBar"></div>
+
+<!-- WINNER BANNER -->
+<div class="winner-banner" id="winnerBanner">
+  <div class="winner-emoji">🏆</div>
+  <div class="winner-info">
+    <div class="winner-label">MENANG!</div>
+    <div class="winner-name" id="winnerName"></div>
+    <div class="winner-timer">Ronde baru dalam 10 detik...</div>
+  </div>
+  <div class="winner-word" id="winnerWordDisplay"></div>
+</div>
+
+<!-- GUESSES -->
+<div class="guesses-label">TEBAKAN TERBARU:</div>
+<div class="guesses-list" id="guessList">
+  <div class="empty-state" id="emptyState">
+    <div class="empty-icon">💬</div>
+    <div class="empty-text">Sambungkan ke TikTok Live<br>lalu penonton ketik kata di chat!</div>
+  </div>
+</div>
+
+<!-- ADMIN PANEL (bottom) -->
+<div class="admin-panel">
+  <input class="admin-input" id="testInput" placeholder="Tes tebakan kata..." maxlength="30">
+  <button class="admin-btn" onclick="testGuess()">➤</button>
+  <button class="admin-new-btn" onclick="newRound()">Ronde Baru</button>
+</div>
+
+<!-- CONNECT MODAL -->
+<div class="modal-overlay hidden" id="connectModal">
+  <div class="modal-card">
+    <div class="modal-title">🔴 Sambungkan TikTok Live</div>
+
+    <input class="modal-input" id="modalUsername" placeholder="@username_tiktok_kamu">
+
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:12px;color:var(--muted)">Session ID <span style="color:#333">(opsional)</span></span>
+      <span class="session-toggle" onclick="toggleSessionHelp()">Cara dapat? →</span>
+    </div>
+    <div class="session-help" id="sessionHelp">
+      <strong>Cara dapat Session ID:</strong><br>
+      1. Buka tiktok.com → login<br>
+      2. F12 → Application → Cookies → tiktok.com<br>
+      3. Cari <strong>sessionid</strong> → copy Value
+    </div>
+    <input class="modal-input" id="modalSession" type="password" placeholder="Paste sessionid cookie (opsional)">
+
+    <button class="modal-btn btn-connect" onclick="doConnect()">🔴 Connect Live</button>
+    <button class="modal-btn btn-cancel"  onclick="closeConnectModal()">Batal</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+let ws, wsTimer;
+let timerInterval = null;
+let roundEndTime  = null;
+let roundDuration = 120;
+let bestRank      = Infinity;
+let bestWord      = "–";
+let totalGuesses  = 0;
+
+// Warna avatar berdasarkan huruf pertama
+const AVATAR_COLORS = [
+  "#e74c3c","#e67e22","#f1c40f","#2ecc71","#1abc9c",
+  "#3498db","#9b59b6","#e91e63","#ff5722","#607d8b",
+];
+function avatarColor(name) {
+  const code = (name || "A").charCodeAt(0);
+  return AVATAR_COLORS[code % AVATAR_COLORS.length];
+}
+
+// ============================================================
+// WEBSOCKET
+// ============================================================
+function connectWS() {
+  const proto = location.protocol === "https:" ? "wss:" : "ws:";
+  ws = new WebSocket(`${proto}//${location.host}`);
+  ws.onopen    = () => console.log("WS connected");
+  ws.onmessage = e => {
+    const data = JSON.parse(e.data);
+    if (data.type === "INIT") { restoreState(data.contexto); return; }
+    if (data.game && data.game !== "contexto") return;
+    handleMsg(data);
+  };
+  ws.onclose   = () => { wsTimer = setTimeout(connectWS, 3000); };
+}
+
+function handleMsg(data) {
+  switch (data.type) {
+    case "NEW_ROUND":        onNewRound(data); break;
+    case "NEW_GUESS":        onNewGuess(data.guess); break;
+    case "GAME_WON":         onWin(data); break;
+    case "GAME_OVER":        onGameOver(data); break;
+    case "WORD_UNKNOWN":     showNotif(`❓ "${data.word}" tidak ada di kamus`, "info"); break;
+    case "TIKTOK_CONNECTED":
+      setConnected(true, data.username);
+      showNotif(`✅ Connected ke @${data.username}`, "success");
+      break;
+    case "TIKTOK_DISCONNECTED":
+      setConnected(false);
+      showNotif("❌ TikTok terputus", "error");
+      break;
+    case "TIKTOK_ERROR":
+      showNotif(`⚠️ ${data.message}`, "error");
+      break;
+    case "CHAT_MESSAGE": break; // abaikan chat non-tebakan di UI
+  }
+}
+
+function restoreState(s) {
+  totalGuesses = s.guesses?.length || 0;
+  roundDuration = s.duration || 120;
+
+  setEl("statTotal", totalGuesses);
+
+  if (s.connected) setConnected(true, s.tiktokUser);
+
+  if (s.isActive && s.roundEndTime) {
+    roundEndTime = s.roundEndTime;
+    startTimer();
+  }
+
+  if (s.guesses && s.guesses.length > 0) {
+    document.getElementById("emptyState")?.remove();
+    // Sort by rank ascending before restoring
+    const sorted = [...s.guesses].sort((a, b) => (a.rank||999999) - (b.rank||999999));
+    bestRank = sorted[0].rank;
+    bestWord = sorted[0].word;
+    setEl("statBest", `${bestWord} (#${bestRank})`);
+    // Show in arrival order
+    s.guesses.forEach(g => addCard(g, false));
+  }
+}
+
+// ============================================================
+// GAME EVENTS
+// ============================================================
+function onNewRound(data) {
+  roundEndTime  = data.roundEndTime;
+  roundDuration = data.duration || 120;
+  bestRank      = Infinity;
+  bestWord      = "–";
+  totalGuesses  = 0;
+
+  setEl("statTotal", 0);
+  setEl("statBest", "–");
+  document.getElementById("winnerBanner").classList.remove("show");
+  document.getElementById("timerNum").className = "timer-num";
+  document.getElementById("timerFill").className = "timer-bar-fill";
+
+  // Clear list
+  const list = document.getElementById("guessList");
+  list.innerHTML = `<div class="empty-state" id="emptyState">
+    <div class="empty-icon">💬</div>
+    <div class="empty-text">Penonton, ketik 1 kata Bahasa Indonesia di chat!</div>
+  </div>`;
+
+  startTimer();
+}
+
+function onNewGuess(g) {
+  totalGuesses++;
+  setEl("statTotal", totalGuesses);
+
+  // Update best
+  if (g.rank !== null && g.rank < bestRank) {
+    bestRank = g.rank;
+    bestWord = g.word;
+    setEl("statBest", `${g.word} (#${g.rank})`);
+  }
+
+  document.getElementById("emptyState")?.remove();
+  addCard(g, true);
+}
+
+function onWin(data) {
+  stopTimer();
+  const banner = document.getElementById("winnerBanner");
+  setEl("winnerName", data.nickname || data.winner);
+  setEl("winnerWordDisplay", (data.word || "").toUpperCase());
+  banner.classList.add("show");
+}
+
+function onGameOver(data) {
+  stopTimer();
+  showNotif(`⏰ Waktu habis! Kata: ${(data.word||"").toUpperCase()}`, "error");
+}
+
+// ============================================================
+// CARD
+// ============================================================
+function addCard(g, animate) {
+  const list = document.getElementById("guessList");
+
+  const card = document.createElement("div");
+  const isWinner = g.isWinner || (g.rank === 1);
+
+  let cardClass = "guess-card";
+  if (isWinner) cardClass += " winner-card";
+
+  card.className = cardClass;
+  if (!animate) card.style.animation = "none";
+
+  // Avatar
+  const av = g.avatar
+    ? `<img class="guess-avatar" src="${g.avatar}" onerror="this.style.display='none'">`
+    : `<div class="guess-avatar-ph" style="background:${avatarColor(g.username)}">${(g.nickname||g.username||"?")[0].toUpperCase()}</div>`;
+
+  // Rank badge color
+  let rankClass = "rank-badge";
+  if (isWinner)      rankClass += " rank-winner";
+  else if (g.rank === null) rankClass += " rank-unknown";
+  else if (g.rank <= 10)   rankClass += " rank-top";
+  else if (g.rank <= 100)  rankClass += " rank-close";
+  else if (g.rank <= 500)  rankClass += " rank-mid";
+  else                     rankClass += " rank-far";
+
+  const rankText = isWinner ? "🏆" : (g.rank === null ? "❓" : g.rank.toLocaleString("id-ID"));
+
+  card.innerHTML = `
+    ${av}
+    <div class="guess-body">
+      <div class="guess-username">${g.nickname || g.username}</div>
+      <div class="guess-word${isWinner ? " winner-word-text" : ""}">${g.word}</div>
+    </div>
+    <div class="${rankClass}">${rankText}</div>
+  `;
+
+  // Insert at top (newest first)
+  const first = list.firstChild;
+  list.insertBefore(card, first);
+}
+
+// ============================================================
+// TIMER
+// ============================================================
+function startTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(tickTimer, 500);
+  tickTimer();
+}
+
+function tickTimer() {
+  if (!roundEndTime) return;
+  const rem = Math.max(0, Math.ceil((roundEndTime - Date.now()) / 1000));
+  const pct = Math.max(0, (rem / roundDuration) * 100);
+
+  const numEl  = document.getElementById("timerNum");
+  const fillEl = document.getElementById("timerFill");
+
+  numEl.textContent = rem;
+  fillEl.style.width = pct + "%";
+
+  if (rem <= 10) {
+    numEl.className  = "timer-num danger";
+    fillEl.className = "timer-bar-fill danger";
+  } else if (rem <= 30) {
+    numEl.className  = "timer-num warn";
+    fillEl.className = "timer-bar-fill warn";
+  } else {
+    numEl.className  = "timer-num";
+    fillEl.className = "timer-bar-fill";
+  }
+
+  if (rem === 0) { clearInterval(timerInterval); timerInterval = null; }
+}
+
+function stopTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  const el = document.getElementById("timerNum");
+  if (el) el.textContent = "--";
+}
+
+// ============================================================
+// CONNECT MODAL
+// ============================================================
+function toggleConnectModal() {
+  const modal = document.getElementById("connectModal");
+  modal.classList.toggle("hidden");
+}
+
+function closeConnectModal() {
+  document.getElementById("connectModal").classList.add("hidden");
+}
+
+function toggleSessionHelp() {
+  document.getElementById("sessionHelp").classList.toggle("show");
+}
+
+async function doConnect() {
+  const username  = document.getElementById("modalUsername").value.trim();
+  const sessionId = document.getElementById("modalSession").value.trim();
+  if (!username) { showNotif("⚠️ Masukkan username!", "error"); return; }
+
+  showNotif("⏳ Connecting...", "info");
+  closeConnectModal();
+
+  try {
+    const res  = await fetch("/api/contexto/connect", {
+      method : "POST",
+      headers: { "Content-Type": "application/json" },
+      body   : JSON.stringify({ username, sessionId }),
+    });
+    const data = await res.json();
+    if (!data.success) showNotif(`❌ ${data.message}`, "error");
+  } catch(e) {
+    showNotif("❌ Gagal connect ke server", "error");
+  }
+}
+
+async function newRound() {
+  await fetch("/api/contexto/new-round", { method: "POST" });
+}
+
+async function testGuess() {
+  const word = document.getElementById("testInput").value.trim().toLowerCase();
+  if (!word) return;
+  await fetch("/api/contexto/test-guess", {
+    method : "POST",
+    headers: { "Content-Type": "application/json" },
+    body   : JSON.stringify({ username: "test_user", word }),
+  });
+  document.getElementById("testInput").value = "";
+}
+
+// ============================================================
+// UI HELPERS
+// ============================================================
+function setEl(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+function setConnected(yes, user = "") {
+  const el = document.getElementById("connectStatus");
+  if (yes) {
+    el.textContent = `@${user} ✓`;
+    el.className = "connect-status connected";
+  } else {
+    el.textContent = "Sambungkan";
+    el.className = "connect-status disconnected";
+  }
+}
+
+let notifTimer;
+function showNotif(msg, type) {
+  const el = document.getElementById("notifBar");
+  el.textContent = msg;
+  el.className = `notif-bar show ${type}`;
+  clearTimeout(notifTimer);
+  notifTimer = setTimeout(() => el.classList.remove("show"), 5000);
+}
+
+// Enter key
+document.getElementById("testInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") testGuess();
+});
+document.getElementById("modalUsername").addEventListener("keydown", e => {
+  if (e.key === "Enter") doConnect();
+});
+
+// Close modal on overlay click
+document.getElementById("connectModal").addEventListener("click", function(e) {
+  if (e.target === this) closeConnectModal();
+});
+
+connectWS();
+</script>
+</body>
+</html>
