@@ -337,7 +337,7 @@ async function contextoStartRound() {
   contextoState.roundNumber++;
   contextoState.totalWords   = sekata_vocab.length;
 
-  console.log(\`🟣 [CONTEXTO] Ronde \${contextoState.roundNumber} — \${secret}\`);
+  console.log(`🟣 [CONTEXTO] Ronde ${contextoState.roundNumber} — ${secret}`);
 
   broadcast({ game: "contexto", type: "NEW_ROUND",
     roundNumber : contextoState.roundNumber,
@@ -366,7 +366,7 @@ function contextoProcessGuess(userId, username, word, nickname, avatar) {
   const guessData = { userId, username, nickname: nickname||username, avatar, word: w, rank, isWinner, timestamp: Date.now() };
 
   contextoState.guesses.push(guessData);
-  console.log(\`  📊 [CONTEXTO] \${username} → "\${w}" rank #\${rank} \${isWinner?"🏆":""}\`);
+  console.log(`  📊 [CONTEXTO] ${username} → "${w}" rank #${rank} ${isWinner?"🏆":""}`);
 
   if (rank === null) { broadcast({ game: "contexto", type: "WORD_UNKNOWN", username, word: w }); return; }
 
@@ -415,6 +415,85 @@ const DEFAULT_QUESTIONS = [
   { q: "Presiden pertama Indonesia?", a: ["soekarno","sukarno"] },
   { q: "Berapa sudut dalam segitiga sama sisi?", a: ["60","60 derajat"] },
   { q: "Gas terbanyak di atmosfer bumi?", a: ["nitrogen"] },
+
+  // === GEOGRAFI ===
+  { q: "Ibu kota Australia?", a: ["canberra"] },
+  { q: "Ibu kota Jepang?", a: ["tokyo"] },
+  { q: "Ibu kota Korea Selatan?", a: ["seoul"] },
+  { q: "Ibu kota Mesir?", a: ["kairo","cairo"] },
+  { q: "Negara terkecil di dunia?", a: ["vatikan","vatican"] },
+  { q: "Gunung tertinggi di dunia?", a: ["everest","mount everest"] },
+  { q: "Danau terbesar di dunia?", a: ["kaspia","laut kaspia","caspian"] },
+  { q: "Samudra terbesar di dunia?", a: ["pasifik","samudra pasifik"] },
+  { q: "Negara dengan penduduk terbanyak di dunia?", a: ["india"] },
+  { q: "Sungai terpanjang di Amerika Selatan?", a: ["amazon"] },
+  { q: "Ibu kota Brasil?", a: ["brasilia"] },
+  { q: "Berapa provinsi di Indonesia?", a: ["38"] },
+  { q: "Pulau terbesar di Indonesia?", a: ["kalimantan","borneo"] },
+  { q: "Ibu kota Turki?", a: ["ankara"] },
+  { q: "Gurun terluas di dunia?", a: ["sahara"] },
+
+  // === SEJARAH INDONESIA ===
+  { q: "Siapa proklamator kemerdekaan Indonesia?", a: ["soekarno hatta","sukarno hatta","bung karno bung hatta"] },
+  { q: "Tahun berapa Indonesia merdeka?", a: ["1945"] },
+  { q: "Siapa presiden kedua Indonesia?", a: ["soeharto","suharto"] },
+  { q: "Apa nama kerajaan Hindu tertua di Indonesia?", a: ["kutai"] },
+  { q: "Di mana Konferensi Asia Afrika 1955 diadakan?", a: ["bandung"] },
+  { q: "Siapa pahlawan dari Aceh yang terkenal?", a: ["cut nyak dien","cut nyak din","teuku umar"] },
+  { q: "Apa nama perjanjian yang mengakui kedaulatan Indonesia dari Belanda?", a: ["roem royen","kmi","konferensi meja bundar"] },
+  { q: "Siapa pendiri Budi Utomo?", a: ["wahidin sudirohusodo","soetomo"] },
+  { q: "Siapa pahlawan dari Surabaya yang terkenal?", a: ["bung tomo"] },
+  { q: "Pada tahun berapa Sumpah Pemuda diikrarkan?", a: ["1928"] },
+
+  // === SAINS & ALAM ===
+  { q: "Apa rumus kimia air?", a: ["h2o"] },
+  { q: "Berapa kecepatan cahaya (km/s)?", a: ["300000","300.000"] },
+  { q: "Planet terdekat dari Matahari?", a: ["merkurius","mercury"] },
+  { q: "Apa nama tulang paha dalam bahasa medis?", a: ["femur"] },
+  { q: "Gas apa yang dihasilkan tanaman saat fotosintesis?", a: ["oksigen","o2"] },
+  { q: "Apa nama ilmuwan yang menemukan gravitasi dari apel jatuh?", a: ["newton","isaac newton"] },
+  { q: "Berapa suhu normal tubuh manusia (Celsius)?", a: ["37","37 derajat"] },
+  { q: "Atom terkecil di alam semesta disebut?", a: ["kuark","quark"] },
+  { q: "Hewan apa yang memiliki DNA paling mirip dengan manusia?", a: ["simpanse","chimpanzee"] },
+  { q: "Apa nama lapisan terluar bumi?", a: ["kerak","kerak bumi","crust"] },
+  { q: "Vitamin D dihasilkan tubuh dari?", a: ["sinar matahari","sinar uv","matahari"] },
+  { q: "Berapa jumlah kromosom manusia?", a: ["46"] },
+  { q: "Apa nama proses berubahnya ulat menjadi kupu-kupu?", a: ["metamorfosis"] },
+  { q: "Planet mana yang punya cincin paling terkenal?", a: ["saturnus","saturn"] },
+  { q: "Apa unsur kimia dengan simbol Au?", a: ["emas","gold"] },
+
+  // === MATEMATIKA ===
+  { q: "Berapa hasil 15 × 15?", a: ["225"] },
+  { q: "Berapa akar kuadrat dari 144?", a: ["12"] },
+  { q: "Berapa 100 dibagi 8?", a: ["12.5","12,5","12 setengah"] },
+  { q: "Berapa 2 pangkat 10?", a: ["1024"] },
+  { q: "Berapa luas lingkaran dengan jari-jari 7? (π=22/7)", a: ["154"] },
+  { q: "Berapa sudut dalam pentagon (segi lima)?", a: ["540","540 derajat"] },
+  { q: "Berapa bilangan prima setelah 17?", a: ["19"] },
+  { q: "Berapa 1000 – 369?", a: ["631"] },
+
+  // === POP CULTURE & HIBURAN ===
+  { q: "Film animasi Disney tentang putri salju?", a: ["frozen"] },
+  { q: "Siapa penulis Harry Potter?", a: ["jk rowling","joanne rowling","j.k. rowling"] },
+  { q: "Karakter utama anime Naruto bermarga apa?", a: ["uzumaki"] },
+  { q: "Siapa vokalis grup musik BTS yang paling populer?", a: ["jungkook","jung kook"] },
+  { q: "Film Marvel tentang manusia laba-laba?", a: ["spiderman","spider-man","spider man"] },
+  { q: "Siapa pemilik perusahaan Tesla?", a: ["elon musk"] },
+  { q: "Aplikasi media sosial berbasis video pendek populer?", a: ["tiktok","tik tok"] },
+  { q: "Game battle royale buatan Garena?", a: ["free fire","freefire"] },
+  { q: "Apa nama planet dalam film Avatar?", a: ["pandora"] },
+  { q: "Siapa penyanyi lagu 'Shape of You'?", a: ["ed sheeran"] },
+
+  // === KULINER & BUDAYA ===
+  { q: "Rendang berasal dari daerah mana?", a: ["minangkabau","sumatera barat","padang"] },
+  { q: "Batik berasal dari negara mana?", a: ["indonesia"] },
+  { q: "Apa nama tarian tradisional dari Bali?", a: ["kecak","legong","pendet"] },
+  { q: "Makanan khas Yogyakarta yang terbuat dari beras ketan?", a: ["gudeg"] },
+  { q: "Wayang golek berasal dari daerah mana?", a: ["jawa barat","sunda"] },
+  { q: "Angklung terbuat dari bahan apa?", a: ["bambu"] },
+  { q: "Apa nama rumah adat Toraja?", a: ["tongkonan"] },
+  { q: "Senjata tradisional dari Jawa yang berbentuk berliku?", a: ["keris"] },
+
 ];
 
 let quizQuestions  = [...DEFAULT_QUESTIONS];
@@ -459,7 +538,7 @@ function quizNextQuestion() {
   quizState.questionNumber++;
   quizState.questionIndex = idx;
 
-  console.log(\`❓ [QUIZ] Q\${quizState.questionNumber}: "\${quizState.question.q}" → \${quizState.question.a.join("/")}\`);
+  console.log(`❓ [QUIZ] Q${quizState.questionNumber}: "${quizState.question.q}" → ${quizState.question.a.join("/")}`);
 
   broadcast({ game: "quiz", type: "NEW_QUESTION",
     question      : quizState.question.q,
@@ -471,7 +550,7 @@ function quizNextQuestion() {
   quizTimer = setTimeout(() => {
     if (!quizState.isActive) return;
     quizState.isActive = false;
-    console.log(\`⏰ [QUIZ] Waktu habis — jawaban: \${quizState.question.a[0]}\`);
+    console.log(`⏰ [QUIZ] Waktu habis — jawaban: ${quizState.question.a[0]}`);
     broadcast({ game: "quiz", type: "QUESTION_TIMEOUT",
       answer    : quizState.question.a[0],
       leaderboard: quizGetLeaderboard(),
@@ -490,7 +569,7 @@ function quizProcessAnswer(userId, username, raw, nickname, avatar) {
   const answerData = { userId, username, nickname: nickname||username, avatar, answer, correct, timestamp: Date.now() };
   quizState.answers.push(answerData);
 
-  console.log(\`  \${correct?"✅":"❌"} [QUIZ] \${username}: "\${answer}"\`);
+  console.log(`  ${correct?"✅":"❌"} [QUIZ] ${username}: "${answer}"`);
 
   broadcast({ game: "quiz", type: "NEW_ANSWER", answer: answerData });
 
@@ -658,7 +737,7 @@ app.post("/api/contexto/new-round",  (req, res) => { contextoStartRound(); res.j
 
 app.post("/api/contexto/test-guess", (req, res) => {
   const { username, word } = req.body;
-  contextoProcessGuess(\`test_\${Date.now()}\`, username||"tester", (word||"").toLowerCase(), "Tester", "");
+  contextoProcessGuess(`test_${Date.now()}`, username||"tester", (word||"").toLowerCase(), "Tester", "");
   res.json({ success: true });
 });
 
@@ -716,7 +795,7 @@ wss.on("connection", ws => {
   console.log("🌐 Browser connected");
   // Kirim state kedua game sekaligus
   ws.send(JSON.stringify({ type: "INIT",
-    wordle : { ...wordleState,  secretWord: wordleState.isActive  ? "?????" : wordleState.secretWord,  totalWords: WORDLE_WORDS.length, duration: ROUND_DURATION_WORDLE }
+    wordle  : { ...wordleState,  secretWord: wordleState.isActive  ? "?????" : wordleState.secretWord,  totalWords: WORDLE_WORDS.length, duration: ROUND_DURATION_WORDLE },
     contexto: { ...contextoState, secretWord: contextoState.isActive ? "?????" : contextoState.secretWord, duration: ROUND_DURATION_CONTEXTO },
   }));
 });
