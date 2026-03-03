@@ -3,1233 +3,253 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TikTok Live WORDLE</title>
-<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<title>Game Hub × TikTok Live</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #0d1117;
-    --surface: #161b27;
-    --border: #1e2d45;
-    --text: #e8eef8;
-    --muted: #5a7090;
-    --correct: #16a34a;
-    --present: #d97706;
-    --absent: #1e2d45;
-    --tiktok: #ff0050;
-    --tiktok2: #00f2ea;
-    --accent: #ff0050;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    background: #0d1117;
-    color: var(--text);
-    font-family: 'Noto Sans', sans-serif;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  /* Scanline effect */
-  body::before {
-    content: '';
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0,0,0,0.15) 2px,
-      rgba(0,0,0,0.15) 4px
-    );
-    pointer-events: none;
-    z-index: 9999;
-  }
-
-  /* Header */
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 24px;
-    border-bottom: 1px solid #1e2d45;
-    background: #0a0f1c;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-
-  .logo {
-    font-family: 'Black Han Sans', sans-serif;
-    font-size: 28px;
-    letter-spacing: 2px;
-    background: linear-gradient(135deg, var(--tiktok), var(--tiktok2));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .logo span {
-    -webkit-text-fill-color: var(--text);
-    background: none;
-    font-size: 14px;
-    font-family: 'Noto Sans', sans-serif;
-    letter-spacing: 1px;
-    opacity: 0.5;
-    margin-left: 8px;
-  }
-
-  .status-badge {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 14px;
-    border-radius: 999px;
-    font-size: 13px;
-    font-weight: 600;
-    border: 1px solid var(--border);
-    transition: all 0.3s;
-  }
-
-  .status-badge.live {
-    background: rgba(255, 0, 80, 0.15);
-    border-color: var(--tiktok);
-    color: var(--tiktok);
-  }
-
-  .status-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--muted);
-  }
-
-  .status-badge.live .status-dot {
-    background: var(--tiktok);
-    animation: pulse 1.5s infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.5; transform: scale(1.3); }
-  }
-
-  /* Layout */
-  .layout {
-    display: grid;
-    grid-template-columns: 340px 1fr 340px;
-    gap: 0;
-    height: calc(100vh - 65px);
-  }
-
-  /* Connect Panel */
-  .connect-panel {
-    border-right: 1px solid #1e2d45;
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    overflow-y: auto;
-    background: #080d18;
-  }
-
-  .panel-title {
-    font-family: 'Black Han Sans', sans-serif;
-    font-size: 13px;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 4px;
-  }
-
-  .input-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .input-group label {
-    font-size: 12px;
-    color: var(--muted);
-    letter-spacing: 1px;
-    text-transform: uppercase;
-  }
-
-  .tiktok-input {
-    background: #0d1117;
-    border: 1px solid #1e2d45;
-    color: var(--text);
-    padding: 12px 16px;
-    border-radius: 8px;
-    font-size: 15px;
-    font-family: 'Noto Sans', sans-serif;
-    transition: border-color 0.2s;
-    width: 100%;
-  }
-
-  .tiktok-input:focus {
-    outline: none;
-    border-color: #3a6abf;
-    box-shadow: 0 0 0 2px rgba(58,106,191,0.2);
-  }
-
-  .btn {
-    padding: 12px 20px;
-    border-radius: 8px;
-    border: none;
-    font-family: 'Black Han Sans', sans-serif;
-    font-size: 14px;
-    letter-spacing: 1px;
-    cursor: pointer;
-    transition: all 0.2s;
-    width: 100%;
-  }
-
-  .btn-primary {
-    background: var(--tiktok);
-    color: white;
-  }
-
-  .btn-primary:hover { background: #e0003e; transform: translateY(-1px); }
-  .btn-primary:active { transform: translateY(0); }
-
-  .btn-secondary {
-    background: transparent;
-    color: var(--muted);
-    border: 1px solid var(--border);
-  }
-
-  .btn-secondary:hover { border-color: var(--text); color: var(--text); }
-
-  .btn-success {
-    background: var(--correct);
-    color: white;
-  }
-
-  /* Divider */
-  .divider {
-    height: 1px;
-    background: var(--border);
-  }
-
-  /* Stats */
-  .stats-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
-
-  .stat-box {
-    background: #0d1117;
-    border: 1px solid #1e2d45;
-    border-radius: 8px;
-    padding: 14px;
-    text-align: center;
-  }
-
-  .stat-value {
-    font-family: 'Black Han Sans', sans-serif;
-    font-size: 28px;
-    color: var(--tiktok2);
-    line-height: 1;
-  }
-
-  .stat-label {
-    font-size: 11px;
-    color: var(--muted);
-    margin-top: 4px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-
-  /* Test input */
-  .test-row {
-    display: flex;
-    gap: 8px;
-  }
-
-  .test-row input {
-    flex: 1;
-  }
-
-  .test-row button {
-    width: auto;
-    padding: 12px 16px;
-    flex-shrink: 0;
-  }
-
-  /* Notification */
-  .notif {
-    padding: 10px 14px;
-    border-radius: 8px;
-    font-size: 13px;
-    display: none;
-  }
-
-  .notif.show { display: block; }
-  .notif.error { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid #ef4444; }
-  .notif.success { background: rgba(22,163,74,0.15); color: #4ade80; border: 1px solid #16a34a; }
-  .notif.info { background: rgba(0,242,234,0.1); color: var(--tiktok2); border: 1px solid var(--tiktok2); }
-
-  /* Main Game Area */
-  .game-area {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 24px 24px;
-    overflow-y: auto;
-    background: radial-gradient(ellipse at 50% 0%, rgba(0,60,120,0.08) 0%, transparent 60%);
-  }
-
-  .round-info {
-    text-align: center;
-    margin-bottom: 24px;
-  }
-
-  .round-number {
-    font-family: 'Black Han Sans', sans-serif;
-    font-size: 13px;
-    letter-spacing: 4px;
-    color: var(--tiktok);
-    margin-bottom: 6px;
-    text-transform: uppercase;
-  }
-
-  .word-hint {
-    font-size: 13px;
-    color: var(--muted);
-  }
-
-  /* Keyboard */
-  .keyboard {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 32px;
-  }
-
-  .kb-row {
-    display: flex;
-    gap: 5px;
-    justify-content: center;
-  }
-
-  .kb-key {
-    width: 46px;
-    height: 46px;
-    background: #161b27;
-    border: 1px solid #1e2d45;
-    border-radius: 7px;
-    color: #8aadc8;
-    font-family: 'Black Han Sans', sans-serif;
-    font-size: 15px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s;
-  }
-
-  .kb-key.correct { background: var(--correct); border-color: var(--correct); }
-  .kb-key.present { background: var(--present); border-color: var(--present); }
-  .kb-key.absent { background: var(--absent); border-color: var(--absent); color: #555; }
-
-  /* Winner banner */
-  .winner-banner {
-    background: linear-gradient(135deg, rgba(22,163,74,0.2), rgba(0,242,234,0.1));
-    border: 1px solid var(--correct);
-    border-radius: 12px;
-    padding: 20px 32px;
-    text-align: center;
-    margin-bottom: 24px;
-    display: none;
-    animation: slideIn 0.5s ease;
-  }
-
-  .winner-banner.show { display: block; }
-
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateY(-20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .winner-banner h2 {
-    font-family: 'Black Han Sans', sans-serif;
-    font-size: 24px;
-    color: #4ade80;
-  }
-
-  .winner-word {
-    font-family: 'Black Han Sans', sans-serif;
-    font-size: 32px;
-    letter-spacing: 8px;
-    color: var(--tiktok2);
-    margin-top: 8px;
-  }
-
-  /* Guesses feed */
-  .guesses-feed {
-    width: 100%;
-    max-width: 640px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .guess-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    background: #1a2d4a;
-    border: none;
-    border-radius: 14px;
-    padding: 12px 16px;
-    animation: fadeUp 0.25s ease;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .guess-row::before {
-    content: '';
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 4px;
-    background: #2a5a90;
-    border-radius: 14px 0 0 14px;
-  }
-
-  .guess-row.winner {
-    background: linear-gradient(135deg, #1a4a2a, #124a30);
-    box-shadow: 0 0 20px rgba(22,163,74,0.4);
-  }
-
-  .guess-row.winner::before {
-    background: var(--correct);
-    width: 5px;
-    box-shadow: 0 0 8px var(--correct);
-  }
-
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(10px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
-  .guess-num {
-    font-family: 'Black Han Sans', sans-serif;
-    font-size: 12px;
-    color: #4a80a0;
-    width: 22px;
-    text-align: center;
-    flex-shrink: 0;
-  }
-
-  /* Avatar dalam card */
-  .guess-avatar, .guess-avatar-placeholder {
-    width: 44px !important;
-    height: 44px !important;
-    font-size: 18px !important;
-  }
-
-  /* Nama + kata gede */
-  .guess-info {
-    flex: 1;
-    overflow: hidden;
-  }
-
-  .guess-username-small {
-    font-size: 11px;
-    color: #6aaabf;
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-bottom: 2px;
-  }
-
-  .guess-word-big {
-    font-family: 'Black Han Sans', sans-serif;
-    font-size: 26px;
-    color: #ffffff;
-    letter-spacing: 1px;
-    line-height: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  /* Tiles kecil di kanan */
-  .guess-tiles {
-    display: flex;
-    gap: 3px;
-    flex-shrink: 0;
-  }
-
-  .tile {
-    width: 30px;
-    height: 30px;
-    border-radius: 5px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: 'Black Han Sans', sans-serif;
-    font-size: 12px;
-    transition: all 0.3s;
-  }
-
-  .tile.correct { background: #16a34a; color: white; }
-  .tile.present { background: #d97706; color: white; }
-  .tile.absent  { background: #1e2d45; color: #5a7090; border: 1px solid #2a5080; }
-
-  .guess-time {
-    display: none;
-  }
-
-  .empty-state {
-    text-align: center;
-    padding: 60px 20px;
-    color: var(--muted);
-  }
-
-  .empty-state .big {
-    font-size: 48px;
-    margin-bottom: 16px;
-  }
-
-  /* Chat feed panel */
-  .chat-panel {
-    border-left: 1px solid #1e2d45;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    background: #080d18;
-  }
-
-  .chat-header {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .chat-feed {
-    flex: 1;
-    overflow-y: auto;
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .chat-feed::-webkit-scrollbar { width: 4px; }
-  .chat-feed::-webkit-scrollbar-track { background: transparent; }
-  .chat-feed::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-  .chat-item {
-    background: #161b27;
-    border-radius: 8px;
-    padding: 8px 12px;
-    font-size: 13px;
-    border: 1px solid #1e2d45;
-    animation: fadeIn 0.2s ease;
-  }
-
-  .chat-item.word-guess {
-    border-color: #2a5a90;
-    background: #161b27;
-  }
-
-  .chat-item .chat-user {
-    color: var(--tiktok);
-    font-weight: 700;
-    font-size: 12px;
-    margin-bottom: 2px;
-  }
-
-  .chat-item .chat-msg {
-    color: var(--text);
-    word-break: break-word;
-  }
-
-  .chat-item.word-guess .chat-msg {
-    color: var(--tiktok2);
-    font-family: 'Black Han Sans', sans-serif;
-    letter-spacing: 2px;
-  }
-
-  /* Countdown */
-  .countdown {
-    text-align: center;
-    padding: 20px;
-    font-family: 'Black Han Sans', sans-serif;
-  }
-
-  .countdown-num {
-    font-size: 48px;
-    color: var(--tiktok);
-    line-height: 1;
-  }
-
-  .countdown-label {
-    font-size: 12px;
-    color: var(--muted);
-    letter-spacing: 2px;
-    margin-top: 4px;
-  }
-
-  /* Timer */
-  .timer-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 14px;
-    margin-bottom: 8px;
-  }
-
-  .timer-display {
-    font-family: 'Black Han Sans', sans-serif;
-    font-size: 52px;
-    line-height: 1;
-    color: var(--tiktok2);
-    transition: color 0.3s;
-    letter-spacing: 2px;
-    min-width: 90px;
-    text-align: center;
-  }
-
-  .timer-display.warning { color: var(--present); }
-  .timer-display.danger  { color: var(--tiktok); animation: timerPulse 0.5s infinite; }
-
-  @keyframes timerPulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
-
-  .timer-bar {
-    width: 200px;
-    height: 6px;
-    background: var(--border);
-    border-radius: 3px;
-    overflow: hidden;
-  }
-
-  .timer-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--tiktok), var(--tiktok2));
-    border-radius: 3px;
-    transition: width 0.9s linear, background 0.3s;
-  }
-
-  .timer-fill.warning { background: linear-gradient(90deg, #b45309, var(--present)); }
-  .timer-fill.danger  { background: var(--tiktok); }
-
-  .timer-label {
-    font-size: 11px;
-    color: var(--muted);
-    text-align: center;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    margin-top: 4px;
-  }
-
-  /* How to play */
-  .howto {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 16px;
-    font-size: 12px;
-    line-height: 1.8;
-    color: var(--muted);
-  }
-
-  .howto strong {
-    color: var(--text);
-  }
-
-  .color-dot {
-    display: inline-block;
-    width: 10px; height: 10px;
-    border-radius: 2px;
-    margin-right: 4px;
-    vertical-align: middle;
-  }
-
-  @media (max-width: 900px) {
-    .layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; }
-    .connect-panel, .chat-panel { border: none; border-bottom: 1px solid var(--border); }
-    .layout .game-area { order: 2; }
-  }
-
-  /* Avatars */
-  .guess-avatar, .chat-avatar {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 2px solid #2a5080;
-    flex-shrink: 0;
-  }
-
-  .guess-avatar-placeholder, .chat-avatar-placeholder {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #1e4a8a, #1a7abf);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: "Black Han Sans", sans-serif;
-    font-size: 18px;
-    color: white;
-    flex-shrink: 0;
-  }
-
-  .guess-userinfo {
-    display: none;
-  }
-
-  .guess-nickname { display: none; }
-  .guess-handle   { display: none; }
-
-  .chat-header-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
-  }
-
-  .chat-handle {
-    font-size: 10px;
-    color: var(--muted);
-  }
-
-  .chat-avatar, .chat-avatar-placeholder {
-    width: 28px;
-    height: 28px;
-    font-size: 12px;
-  }
-
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: #0d1117;
+  color: #e8eef8;
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(0,200,150,0.06) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.hub-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: #3a6a8a;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.hub-sub {
+  font-size: 28px;
+  font-weight: 900;
+  text-align: center;
+  margin-bottom: 40px;
+  background: linear-gradient(135deg, #00c896, #3b82f6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.games {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 1020px;
+}
+
+.game-card {
+  background: #111820;
+  border: 1px solid #1e2d45;
+  border-radius: 20px;
+  padding: 28px 24px;
+  width: 300px;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.25s;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.game-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.25s;
+  border-radius: 20px;
+}
+
+.game-card.wordle::before { background: radial-gradient(ellipse at 50% 0%, rgba(22,163,74,0.12), transparent 70%); }
+.game-card.sekata::before { background: radial-gradient(ellipse at 50% 0%, rgba(59,130,246,0.12), transparent 70%); }
+
+.game-card:hover { transform: translateY(-4px); }
+.game-card.wordle:hover { border-color: #16a34a; box-shadow: 0 8px 32px rgba(22,163,74,0.15); }
+.game-card.sekata:hover { border-color: #3b82f6; box-shadow: 0 8px 32px rgba(59,130,246,0.15); }
+.game-card:hover::before { opacity: 1; }
+
+.game-icon { font-size: 40px; }
+
+.game-name {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+.game-card.wordle .game-name { color: #4ade80; }
+.game-card.sekata .game-name { color: #93c5fd; }
+
+.game-desc {
+  font-size: 13px;
+  color: #5a7090;
+  line-height: 1.7;
+}
+
+.game-tiles {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.tile {
+  width: 28px; height: 28px;
+  border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 12px;
+}
+
+.tile.c { background: #16a34a; color: white; }
+.tile.p { background: #d97706; color: white; }
+.tile.a { background: #1e2d45; color: #5a7090; }
+
+.rank-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.rank-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.rank-badge {
+  background: white;
+  color: #0d1117;
+  font-weight: 800;
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  min-width: 32px;
+  text-align: center;
+}
+
+.rank-badge.gold { background: #fbbf24; color:#000; }
+.rank-badge.silver { background: #9ca3af; color:#000; }
+.rank-badge.bronze { background: #c2956b; color:#fff; }
+.rank-badge.teal { background: #6ee7b7; }
+
+.rank-word { color: #e8eef8; font-weight: 600; }
+
+.play-btn {
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  transition: opacity 0.2s;
+  text-align: center;
+}
+
+.game-card.wordle .play-btn { background: #16a34a; color: white; }
+.game-card.sekata .play-btn { background: #3b82f6; color: white; }
+.game-card.contexto::before { background: radial-gradient(ellipse at 50% 0%, rgba(139,92,246,0.12), transparent 70%); }
+.game-card.contexto:hover { border-color: #8b5cf6; box-shadow: 0 8px 32px rgba(139,92,246,0.15); }
+.game-card.contexto .game-name { color: #c4b5fd; }
+.game-card.contexto .play-btn { background: #8b5cf6; color: white; }
+.game-card.quiz::before { background: radial-gradient(ellipse at 50% 0%, rgba(245,158,11,0.12), transparent 70%); }
+.game-card.quiz:hover { border-color: #f59e0b; box-shadow: 0 8px 32px rgba(245,158,11,0.15); }
+.game-card.quiz .game-name { color: #fcd34d; }
+.game-card.quiz .play-btn { background: #f59e0b; color: #000; }
+.play-btn:hover { opacity: 0.85; }
+
+.footer {
+  margin-top: 40px;
+  font-size: 12px;
+  color: #2a3a4a;
+  text-align: center;
+}
 </style>
 </head>
 <body>
 
-<header>
-  <div class="logo">
-    WORDLE<span>× TIKTOK LIVE</span>
-  </div>
-  <div class="status-badge" id="statusBadge">
-    <div class="status-dot"></div>
-    <span id="statusText">Belum Connect</span>
-  </div>
-</header>
+<div class="hub-title">TikTok Live</div>
+<div class="hub-sub">🎮 Game Hub</div>
 
-<div class="layout">
+<div class="games">
 
-  <!-- LEFT: Connect Panel -->
-  <div class="connect-panel">
-    <div>
-      <div class="panel-title">TikTok Connect</div>
+  <!-- WORDLE -->
+  <a class="game-card wordle" href="/wordle.html">
+    <div class="game-icon">🟩</div>
+    <div class="game-name">WORDLE</div>
+    <div class="game-desc">
+      Tebak kata <strong style="color:#e8eef8">5 huruf</strong> yang tersembunyi.<br>
+      Penonton ketik kata di chat — dapat petunjuk warna tiap huruf.
     </div>
-
-    <div id="notif" class="notif"></div>
-
-    <div class="input-group">
-      <label>Username TikTok</label>
-      <input type="text" class="tiktok-input" id="tiktokUsername" placeholder="@username_kamu">
+    <div class="game-tiles">
+      <div class="tile a">W</div>
+      <div class="tile c">O</div>
+      <div class="tile p">R</div>
+      <div class="tile a">D</div>
+      <div class="tile c">L</div>
     </div>
+    <div class="play-btn">▶ Main Wordle</div>
+  </a>
 
-    <div class="input-group">
-      <label style="display:flex;align-items:center;justify-content:space-between">
-        <span>Session ID <span style="color:#444;font-weight:normal">(opsional)</span></span>
-        <a href="#" onclick="showSessionHelp();return false;" style="color:var(--tiktok2);font-size:11px;text-decoration:none">Cara dapat? →</a>
-      </label>
-      <input type="password" class="tiktok-input" id="sessionId" placeholder="Paste sessionid cookie di sini" style="font-size:13px">
+  <!-- CONTEXTO -->
+  <a class="game-card contexto" href="/contexto.html">
+    <div class="game-icon">🟣</div>
+    <div class="game-name">CONTEXTO</div>
+    <div class="game-desc">
+      Versi asli — tebak kata rahasia dari <strong style="color:#e8eef8">konteks semantik</strong>.<br>
+      Boleh kata berapa huruf pun, ranking menentukan kedekatan!
     </div>
-
-    <div id="sessionHelp" style="display:none;background:#111;border:1px solid #333;border-radius:8px;padding:12px;font-size:12px;color:var(--muted);line-height:1.8">
-      <strong style="color:var(--text)">Cara dapat Session ID:</strong><br>
-      1. Buka <strong style="color:var(--tiktok2)">tiktok.com</strong> di browser & login<br>
-      2. Tekan <strong>F12</strong> → tab <strong>Application</strong><br>
-      3. Klik <strong>Cookies → tiktok.com</strong><br>
-      4. Cari nama <strong style="color:var(--tiktok)">sessionid</strong><br>
-      5. Copy nilai di kolom <strong>Value</strong><br><br>
-      <span style="color:#555">Session ID diperlukan jika muncul error "invalid session"</span>
+    <div class="rank-preview">
+      <div class="rank-row"><div class="rank-badge gold">8</div><div class="rank-word">Bagus</div></div>
+      <div class="rank-row"><div class="rank-badge teal">21</div><div class="rank-word">Indah</div></div>
+      <div class="rank-row"><div class="rank-badge">559</div><div class="rank-word">Layan</div></div>
     </div>
+    <div class="play-btn">▶ Main Contexto</div>
+  </a>
 
-    <button class="btn btn-primary" onclick="connectTikTok()">🔴 Connect Live</button>
-    <button class="btn btn-secondary" onclick="disconnectTikTok()">Disconnect</button>
-
-    <div class="divider"></div>
-
-    <div>
-      <div class="panel-title" style="margin-bottom:12px">Game</div>
-      <button class="btn btn-success" onclick="newRound()">🎮 Ronde Baru</button>
+  <!-- KUIS -->
+  <a class="game-card quiz" href="/quiz.html">
+    <div class="game-icon">❓</div>
+    <div class="game-name">KUIS LIVE</div>
+    <div class="game-desc">
+      Streamer tanya, penonton jawab di chat.<br>
+      Siapa tercepat menjawab benar — poin naik!
     </div>
-
-    <div class="divider"></div>
-
-    <div>
-      <div class="panel-title" style="margin-bottom:12px">Test Tebakan</div>
-      <div class="test-row">
-        <input type="text" class="tiktok-input" id="testWord" placeholder="5 huruf" maxlength="5" style="text-transform:uppercase">
-        <button class="btn btn-secondary" onclick="testGuess()" style="white-space:nowrap">Kirim</button>
-      </div>
+    <div class="rank-preview">
+      <div class="rank-row"><div class="rank-badge gold">🥇</div><div class="rank-word">user123 — 12 poin</div></div>
+      <div class="rank-row"><div class="rank-badge silver">🥈</div><div class="rank-word">nonton99 — 8 poin</div></div>
+      <div class="rank-row"><div class="rank-badge bronze">🥉</div><div class="rank-word">penonton — 5 poin</div></div>
     </div>
-
-    <div class="divider"></div>
-
-    <div>
-      <div class="panel-title" style="margin-bottom:12px">Statistik</div>
-      <div class="stats-grid">
-        <div class="stat-box">
-          <div class="stat-value" id="statRound">0</div>
-          <div class="stat-label">Ronde</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-value" id="statGuesses">0</div>
-          <div class="stat-label">Tebakan</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="divider"></div>
-
-    <div class="howto">
-      <strong>Cara Main:</strong><br>
-      Penonton ketik kata <strong>5 huruf</strong> di chat TikTok Live kamu<br><br>
-      <span class="color-dot" style="background:var(--correct)"></span><strong>Hijau</strong> = huruf & posisi benar<br>
-      <span class="color-dot" style="background:var(--present)"></span><strong>Kuning</strong> = huruf ada, posisi salah<br>
-      <span class="color-dot" style="background:var(--absent)"></span><strong>Abu</strong> = huruf tidak ada
-    </div>
-  </div>
-
-  <!-- CENTER: Game Area -->
-  <div class="game-area">
-    <div class="round-info">
-      <div class="round-number" id="roundNum">RONDE #0</div>
-      <div class="word-hint" id="wordHint">Belum ada game aktif</div>
-    </div>
-
-    <div class="winner-banner" id="winnerBanner">
-      <h2>🏆 MENANG!</h2>
-      <div id="winnerName" style="color:#4ade80;font-size:15px;margin-top:4px;font-weight:700"></div>
-      <div class="winner-word" id="winnerWord" style="font-size:36px;letter-spacing:8px;color:var(--tiktok2);font-family:'Black Han Sans',sans-serif;margin-top:4px"></div>
-      <div style="font-size:11px;color:var(--muted);margin-top:8px">Ronde baru dalam 8 detik...</div>
-    </div>
-
-    <div class="keyboard" id="keyboard"></div>
-
-    <div class="timer-wrap">
-      <div>
-        <div class="timer-display" id="timerDisplay">--</div>
-        <div class="timer-label">detik</div>
-      </div>
-      <div>
-        <div class="timer-bar"><div class="timer-fill" id="timerFill" style="width:100%"></div></div>
-        <div class="timer-label" style="margin-top:6px"><span id="guessCount">0</span> tebakan masuk</div>
-      </div>
-    </div>
-
-    <div class="guesses-feed" id="guessesFeed">
-      <div class="empty-state">
-        <div class="big">🎮</div>
-        <div>Connect ke TikTok Live dulu<br>lalu penonton bisa mulai menebak!</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- RIGHT: Chat Feed -->
-  <div class="chat-panel">
-    <div class="chat-header">
-      <div class="panel-title">Live Chat</div>
-      <div style="font-size:12px;color:var(--muted)" id="chatCount">0 pesan</div>
-    </div>
-    <div class="chat-feed" id="chatFeed">
-      <div style="text-align:center;color:var(--muted);padding:40px 20px;font-size:13px">
-        Chat dari penonton TikTok<br>akan muncul di sini
-      </div>
-    </div>
-  </div>
+    <div class="play-btn">▶ Main Kuis</div>
+  </a>
 
 </div>
 
-<script>
-// =============================================
-// WEBSOCKET
-// =============================================
-let ws;
-let reconnectTimer;
-let chatCount = 0;
-let keyboardState = {};
-let gameActive = false;
-let timerInterval = null;
-let roundEndTime = null;
-let roundDuration = 60;
+<div class="footer">Sambungkan ke TikTok Live di halaman masing-masing game</div>
 
-function connectWS() {
-  const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  ws = new WebSocket(`${wsProtocol}//${location.host}`);
-  
-  ws.onopen = () => console.log("WebSocket connected");
-  
-  ws.onmessage = (e) => {
-    const data = JSON.parse(e.data);
-    handleMessage(data);
-  };
-  
-  ws.onclose = () => {
-    reconnectTimer = setTimeout(connectWS, 3000);
-  };
-}
-
-function handleMessage(data) {
-  switch(data.type) {
-    case "STATE":
-      restoreState(data.state);
-      break;
-    
-    case "NEW_ROUND":
-      handleNewRound(data);
-      break;
-    
-    case "NEW_GUESS":
-      addGuessRow(data.guess);
-      updateGuessCount(data.totalGuesses);
-      addChatItem(data.guess.username, data.guess.word, true, data.guess.nickname, data.guess.avatar);
-      updateKeyboard(data.guess.word, data.guess.result);
-      break;
-    
-    case "GAME_WON":
-      stopTimer();
-      showWinner(data.winner, data.word, data.nickname, data.avatar);
-      break;
-    
-    case "GAME_OVER":
-      stopTimer();
-      showGameOver(data.word);
-      break;
-    
-    case "TIKTOK_CONNECTED":
-      setStatus("live", `@${data.username} LIVE`);
-      showNotif(`✅ Berhasil connect ke @${data.username}!`, "success");
-      break;
-    
-    case "TIKTOK_DISCONNECTED":
-      setStatus("", "Terputus");
-      showNotif("❌ Koneksi TikTok terputus", "error");
-      break;
-    
-    case "CHAT_MESSAGE":
-      addChatItem(data.username, data.message, data.isGuess, data.nickname, data.avatar);
-      break;
-
-    case "TIKTOK_ERROR":
-      showNotif(`⚠️ ${data.message}`, "error");
-      break;
-  }
-}
-
-function restoreState(state) {
-  document.getElementById("statRound").textContent = state.roundNumber;
-  document.getElementById("statGuesses").textContent = state.guesses.length;
-  document.getElementById("roundNum").textContent = `RONDE #${state.roundNumber}`;
-  
-  if (state.isActive) {
-    document.getElementById("wordHint").textContent = "Penonton, ketik kata 5 huruf di chat!";
-    gameActive = true;
-    if (state.roundEndTime) {
-      roundEndTime = state.roundEndTime;
-      roundDuration = state.duration || 60;
-      startTimerDisplay();
-    }
-  }
-
-  if (state.connected) {
-    setStatus("live", `@${state.tiktokUser} LIVE`);
-  }
-
-  // Restore guesses
-  if (state.guesses.length > 0) {
-    document.getElementById("guessesFeed").innerHTML = "";
-    state.guesses.forEach(g => {
-      addGuessRow(g, false);
-      updateKeyboard(g.word, g.result);
-    });
-    updateGuessCount(state.guesses.length);
-  }
-}
-
-// =============================================
-// UI UPDATES
-// =============================================
-function setStatus(type, text) {
-  const badge = document.getElementById("statusBadge");
-  const statusText = document.getElementById("statusText");
-  badge.className = "status-badge" + (type === "live" ? " live" : "");
-  statusText.textContent = text;
-}
-
-function showNotif(msg, type) {
-  const el = document.getElementById("notif");
-  el.className = `notif show ${type}`;
-  el.textContent = msg;
-  setTimeout(() => el.classList.remove("show"), 5000);
-}
-
-function handleNewRound(data) {
-  gameActive = true;
-  keyboardState = {};
-  roundEndTime = data.roundEndTime;
-  roundDuration = data.duration || 60;
-  document.getElementById("roundNum").textContent = `RONDE #${data.roundNumber}`;
-  document.getElementById("wordHint").textContent = "Penonton, ketik kata 5 huruf di chat!";
-  document.getElementById("statRound").textContent = data.roundNumber;
-  document.getElementById("guessesFeed").innerHTML = "";
-  document.getElementById("winnerBanner").classList.remove("show");
-  document.getElementById("guessCount").textContent = "0";
-  renderKeyboard();
-  startTimerDisplay();
-}
-
-function addGuessRow(guess, animate = true) {
-  const feed = document.getElementById("guessesFeed");
-  
-  // Remove empty state
-  const empty = feed.querySelector(".empty-state");
-  if (empty) empty.remove();
-
-  const isWin = guess.result.every(r => r === "correct");
-  const row = document.createElement("div");
-  row.className = `guess-row${isWin ? " winner" : ""}`;
-  if (!animate) row.style.animation = "none";
-
-  const time = new Date(guess.timestamp).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-
-  const avatarHtml = guess.avatar
-    ? `<img class="guess-avatar" src="${guess.avatar}" onerror="this.style.display='none'">`
-    : `<div class="guess-avatar-placeholder">${(guess.nickname||guess.username)[0].toUpperCase()}</div>`;
-
-  row.innerHTML = `
-    <div class="guess-num">#${guess.guessNumber}</div>
-    ${avatarHtml}
-    <div class="guess-info">
-      <div class="guess-username-small">${guess.nickname || guess.username}</div>
-      <div class="guess-word-big">${guess.word}</div>
-    </div>
-    <div class="guess-tiles">
-      ${guess.word.split("").map((letter, i) => `
-        <div class="tile ${guess.result[i]}">${letter}</div>
-      `).join("")}
-    </div>
-  `;
-
-  feed.appendChild(row);
-  row.scrollIntoView({ behavior: "smooth", block: "nearest" });
-
-  document.getElementById("statGuesses").textContent = parseInt(document.getElementById("statGuesses").textContent) + (animate ? 1 : 0);
-}
-
-function updateGuessCount(count) {
-  document.getElementById("guessCount").textContent = count;
-}
-
-function startTimerDisplay() {
-  if (timerInterval) clearInterval(timerInterval);
-  timerInterval = setInterval(() => {
-    if (!roundEndTime) return;
-    const remaining = Math.max(0, Math.ceil((roundEndTime - Date.now()) / 1000));
-    const pct = (remaining / roundDuration) * 100;
-
-    const disp = document.getElementById("timerDisplay");
-    const fill = document.getElementById("timerFill");
-
-    disp.textContent = remaining;
-    fill.style.width = pct + "%";
-
-    // Color states
-    if (remaining <= 10) {
-      disp.className = "timer-display danger";
-      fill.className = "timer-fill danger";
-    } else if (remaining <= 20) {
-      disp.className = "timer-display warning";
-      fill.className = "timer-fill warning";
-    } else {
-      disp.className = "timer-display";
-      fill.className = "timer-fill";
-    }
-
-    if (remaining === 0) {
-      clearInterval(timerInterval);
-      timerInterval = null;
-    }
-  }, 500);
-}
-
-function stopTimer() {
-  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-  const disp = document.getElementById("timerDisplay");
-  if (disp) disp.textContent = "--";
-  const fill = document.getElementById("timerFill");
-  if (fill) { fill.style.width = "0%"; fill.className = "timer-fill"; }
-}
-
-function showWinner(winner, word, nickname, avatar) {
-  const banner = document.getElementById("winnerBanner");
-  const avatarHtml = avatar
-    ? `<img src="${avatar}" style="width:56px;height:56px;border-radius:50%;border:3px solid var(--correct);margin-bottom:8px" onerror="this.style.display='none'">`
-    : ``;
-  document.getElementById("winnerName").innerHTML = `${avatarHtml}<br>${nickname || winner} <span style="font-size:12px;color:var(--muted)">(@${winner})</span>`;
-  document.getElementById("winnerWord").textContent = word;
-  banner.classList.add("show");
-  gameActive = false;
-  document.getElementById("wordHint").textContent = `Kata: ${word} ✅`;
-}
-
-function showGameOver(word) {
-  document.getElementById("wordHint").textContent = `Kata: ${word} — Tidak ada yang menang!`;
-  gameActive = false;
-}
-
-function addChatItem(user, msg, isGuess = false, nickname = "", avatar = "") {
-  const feed = document.getElementById("chatFeed");
-  
-  // Remove initial placeholder
-  const placeholder = feed.querySelector("div:not(.chat-item)");
-  if (placeholder && feed.children.length === 1) placeholder.remove();
-
-  const item = document.createElement("div");
-  item.className = `chat-item${isGuess ? " word-guess" : ""}`;
-  const chatAvatar = avatar
-    ? `<img class="chat-avatar" src="${avatar}" onerror="this.style.display='none'">`
-    : `<div class="chat-avatar-placeholder">${(nickname||user)[0].toUpperCase()}</div>`;
-  item.innerHTML = `
-    <div class="chat-header-row">
-      ${chatAvatar}
-      <div>
-        <div class="chat-user">${nickname || user}</div>
-        <div class="chat-handle">@${user}</div>
-      </div>
-    </div>
-    <div class="chat-msg">${msg}</div>
-  `;
-  
-  feed.appendChild(item);
-  feed.scrollTop = feed.scrollHeight;
-
-  chatCount++;
-  document.getElementById("chatCount").textContent = `${chatCount} pesan`;
-
-  // Limit chat to 100 items
-  while (feed.children.length > 100) {
-    feed.removeChild(feed.firstChild);
-  }
-}
-
-// =============================================
-// KEYBOARD
-// =============================================
-function renderKeyboard() {
-  const rows = [
-    ["Q","W","E","R","T","Y","U","I","O","P"],
-    ["A","S","D","F","G","H","J","K","L"],
-    ["Z","X","C","V","B","N","M"]
-  ];
-
-  const kb = document.getElementById("keyboard");
-  kb.innerHTML = rows.map(row => `
-    <div class="kb-row">
-      ${row.map(k => `<div class="kb-key" id="key-${k}">${k}</div>`).join("")}
-    </div>
-  `).join("");
-}
-
-function updateKeyboard(word, result) {
-  const priority = { correct: 3, present: 2, absent: 1 };
-  
-  word.split("").forEach((letter, i) => {
-    const state = result[i];
-    const current = keyboardState[letter];
-    
-    if (!current || priority[state] > priority[current]) {
-      keyboardState[letter] = state;
-      const key = document.getElementById(`key-${letter}`);
-      if (key) {
-        key.className = `kb-key ${state}`;
-      }
-    }
-  });
-}
-
-renderKeyboard();
-
-// =============================================
-// API CALLS
-// =============================================
-function showSessionHelp() {
-  const el = document.getElementById("sessionHelp");
-  el.style.display = el.style.display === "none" ? "block" : "none";
-}
-
-async function connectTikTok() {
-  const username = document.getElementById("tiktokUsername").value.trim();
-  const sessionId = document.getElementById("sessionId").value.trim();
-
-  if (!username) {
-    showNotif("⚠️ Masukkan username TikTok dulu!", "error");
-    return;
-  }
-  
-  showNotif("⏳ Mencoba connect...", "info");
-
-  try {
-    const res = await fetch("/api/connect", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, sessionId })
-    });
-    const data = await res.json();
-    if (!data.success) showNotif(`❌ ${data.message}`, "error");
-  } catch(e) {
-    showNotif("❌ Gagal connect ke server", "error");
-  }
-}
-
-async function disconnectTikTok() {
-  await fetch("/api/disconnect", { method: "POST" });
-  setStatus("", "Belum Connect");
-  showNotif("Disconnected", "info");
-}
-
-async function newRound() {
-  await fetch("/api/new-round", { method: "POST" });
-}
-
-async function testGuess() {
-  const word = document.getElementById("testWord").value.trim();
-  if (word.length !== 5) {
-    showNotif("⚠️ Kata harus 5 huruf!", "error");
-    return;
-  }
-  
-  await fetch("/api/test-guess", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: "test_user", word })
-  });
-  
-  document.getElementById("testWord").value = "";
-}
-
-// Enter key for test
-document.getElementById("testWord").addEventListener("keydown", e => {
-  if (e.key === "Enter") testGuess();
-});
-
-document.getElementById("tiktokUsername").addEventListener("keydown", e => {
-  if (e.key === "Enter") connectTikTok();
-});
-
-// Start WebSocket
-connectWS();
-</script>
 </body>
 </html>
