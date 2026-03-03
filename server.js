@@ -288,6 +288,104 @@ function wordleProcessGuess(userId, username, word, nickname, avatar) {
   }
 }
 
+
+// ============================================================
+// WORD VECTORS — dipakai oleh Contexto
+// ============================================================
+let sekata_vectors = {};
+let sekata_vocab   = [];
+let sekata_rankMap = {};
+
+const SEKATA_VECTORS_FILE = require("path").join(__dirname, "vectors.vec");
+const SEKATA_MAX_WORDS    = 100000;
+
+const SEKATA_SECRET_WORDS = [
+  "hutan","gunung","pantai","sungai","danau","laut","hujan","angin","api","tanah",
+  "harimau","gajah","ular","burung","ikan","kucing","anjing","singa","kupu","lebah",
+  "nasi","rendang","sate","bakso","tempe","kopi","madu","gula","garam","cabai",
+  "rumah","pohon","buku","meja","kursi","lampu","pintu","jendela","kunci","cermin",
+  "cinta","rindu","bahagia","sedih","marah","takut","bangga","kecewa","senang","lelah",
+  "guru","dokter","petani","nelayan","polisi","pilot","hakim","aktor","musisi","penulis",
+  "batik","wayang","gamelan","angklung","reog","kebaya","sarung","keraton","candi","pura",
+  "udara","langit","bintang","bulan","matahari","waktu","mimpi","harapan","semangat","berani",
+];
+
+async function sekataLoadVectors() {
+  if (!require("fs").existsSync(SEKATA_VECTORS_FILE)) {
+    console.warn("⚠️  vectors.vec tidak ada → mode DEMO");
+    sekataLoadDemo();
+    return;
+  }
+  console.log("📖 Loading vectors...");
+  const t0 = Date.now();
+  const rl = require("readline").createInterface({ input: require("fs").createReadStream(SEKATA_VECTORS_FILE, { encoding: "utf8" }), crlfDelay: Infinity });
+  let n = 0;
+  for await (const line of rl) {
+    if (n === 0) { n++; continue; }
+    if (n > SEKATA_MAX_WORDS) break;
+    const sp = line.indexOf(" ");
+    if (sp === -1) continue;
+    const word  = line.slice(0, sp).toLowerCase();
+    const parts = line.slice(sp + 1).trimEnd().split(" ");
+    const vec   = new Float32Array(parts.length);
+    for (let i = 0; i < parts.length; i++) vec[i] = parseFloat(parts[i]);
+    sekata_vectors[word] = vec;
+    sekata_vocab.push(word);
+    n++;
+  }
+  console.log(`✅ Vectors: ${sekata_vocab.length} kata dalam ${((Date.now()-t0)/1000).toFixed(1)}s`);
+}
+
+function sekataLoadDemo() {
+  const DIM = 50;
+  const groups = [
+    ["nasi","makan","lauk","minum","kopi","teh","bubur","soto","bakso","rendang","gulai","sate","tempe","tahu","ikan","ayam","daging","telur","susu","roti","gula","garam","bumbu","sambal","minyak","bawang","cabai","tomat","pisang","mangga","apel","jeruk","durian","kelapa","pepaya","semangka","nanas","anggur","alpukat","rambutan"],
+    ["hutan","pohon","daun","bunga","akar","rumput","lumut","batu","tanah","pasir","air","sungai","danau","laut","pantai","gunung","bukit","lembah","sawah","ladang","kebun","taman","matahari","bulan","bintang","awan","hujan","angin","petir","badai","gempa","banjir","musim","cuaca","langit","udara","alam","hewan","tumbuhan","bumi"],
+    ["anjing","kucing","sapi","kuda","kambing","domba","ayam","bebek","burung","ikan","ular","buaya","harimau","gajah","singa","beruang","monyet","kelinci","tikus","kelelawar","kupu","lebah","semut","nyamuk","lalat","capung","kodok","katak","penyu","lumba","paus","hiu","elang","merpati","nuri","rajawali","rusa","babi","macan","serigala"],
+    ["ayah","ibu","anak","kakak","adik","kakek","nenek","paman","bibi","sepupu","keponakan","saudara","suami","istri","menantu","mertua","ipar","keluarga","orang","manusia","bayi","balita","remaja","dewasa","lansia","teman","sahabat","kawan","tetangga","kolega"],
+    ["rumah","gedung","kantor","sekolah","masjid","gereja","hotel","restoran","toko","pasar","bank","stasiun","bandara","pelabuhan","terminal","garasi","dapur","kamar","ruang","teras","atap","dinding","lantai","pintu","jendela","tangga","sumur","pagar","tembok","tiang"],
+    ["senang","sedih","marah","takut","cemas","bahagia","gembira","kecewa","malu","bangga","rindu","cinta","sayang","benci","iri","heran","kagum","bingung","lelah","sehat","sakit","lapar","kenyang","segar","galau","gundah","resah","tenang","damai","syukur"],
+    ["guru","dokter","perawat","polisi","tentara","petani","nelayan","pedagang","sopir","pilot","insinyur","arsitek","akuntan","pengacara","hakim","jaksa","menteri","presiden","artis","penyanyi","aktor","musisi","pelukis","penulis","jurnalis","peneliti","ilmuwan","pengusaha","bidan","apoteker"],
+    ["komputer","laptop","ponsel","tablet","internet","aplikasi","program","kode","data","server","wifi","listrik","baterai","layar","keyboard","mouse","printer","kamera","televisi","radio","speaker","drone","robot","satelit","roket","teknologi","digital","virtual","online","media"],
+    ["merah","biru","hijau","kuning","putih","hitam","ungu","oranye","coklat","abu","pink","tosca","maroon","navy","gold","silver","cream","beige","violet","magenta"],
+    ["batik","kebaya","sarung","songket","wayang","gamelan","angklung","kecak","reog","saman","adat","budaya","tradisi","ritual","upacara","perayaan","merdeka","pancasila","bendera","garuda","keraton","candi","pura","masjid","keris","mahkota","singgasana","tari","musik","seni"],
+  ];
+  const rand = (s, i) => { const x = Math.sin(s*127.1+i*311.7)*43758.5453; return x-Math.floor(x); };
+  groups.forEach((group, gi) => {
+    const base = new Float32Array(DIM);
+    for (let d = 0; d < DIM; d++) base[d] = rand(gi*100+d,0)*2-1;
+    const mag = Math.sqrt(base.reduce((s,v)=>s+v*v,0));
+    for (let d = 0; d < DIM; d++) base[d] /= mag;
+    group.forEach((word, wi) => {
+      const vec = new Float32Array(DIM);
+      for (let d = 0; d < DIM; d++) vec[d] = base[d]*0.8+(rand(gi*1000+wi*37+d,1)*2-1)*0.2;
+      const m2 = Math.sqrt(vec.reduce((s,v)=>s+v*v,0));
+      for (let d = 0; d < DIM; d++) vec[d] /= m2;
+      sekata_vectors[word] = vec;
+      sekata_vocab.push(word);
+    });
+  });
+  console.log(`✅ Demo vectors: ${sekata_vocab.length} kata`);
+}
+
+function sekataCosine(a, b) {
+  let dot=0, ma=0, mb=0;
+  for (let i=0; i<a.length; i++) { dot+=a[i]*b[i]; ma+=a[i]*a[i]; mb+=b[i]*b[i]; }
+  return (ma===0||mb===0) ? 0 : dot/(Math.sqrt(ma)*Math.sqrt(mb));
+}
+
+function sekataComputeRankings(secret) {
+  const sv = sekata_vectors[secret.toLowerCase()];
+  if (!sv) return false;
+  const sims = sekata_vocab.map(w => ({ w, s: sekataCosine(sekata_vectors[w], sv) }));
+  sims.sort((a,b) => b.s - a.s);
+  sekata_rankMap = {};
+  sims.forEach((item, i) => { sekata_rankMap[item.w] = i+1; });
+  return true;
+}
+
+function sekataGetRank(word) { return sekata_rankMap[word.toLowerCase()] ?? null; }
+
 // ============================================================
 // ██████╗ ██████╗ ███╗   ██╗████████╗███████╗██╗  ██╗████████╗ ██████╗
 // ██╔════╝██╔═══██╗████╗  ██║╚══██╔══╝██╔════╝╚██╗██╔╝╚══██╔══╝██╔═══██╗
@@ -810,7 +908,7 @@ const PORT = process.env.PORT || 3000;
   server.listen(PORT, () => {
     console.log(`\n🎮 Game Hub — Port ${PORT}`);
     console.log(`   Wordle : ${WORDLE_WORDS.length} kata`);
-    console.log(`   Sekata : ${sekata_vocab.length} kata`);
+    console.log(`   Vectors : ${sekata_vocab.length} kata`);
     console.log(`   Buka   : http://localhost:${PORT}\n`);
   });
 })();
