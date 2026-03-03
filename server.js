@@ -1,619 +1,737 @@
-const express = require("express");
-const http = require("http");
+const express  = require("express");
+const http     = require("http");
 const WebSocket = require("ws");
 const { WebcastPushConnection } = require("tiktok-live-connector");
-const path = require("path");
+const path     = require("path");
+const fs       = require("fs");
+const readline = require("readline");
 
-const app = express();
+const app    = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const wss    = new WebSocket.Server({ server });
 
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.json());
 
-// =============================================
-// WORD LIST (1000+ kata)
-// =============================================
-const WORD_LIST = [
-  // === INDONESIA - ALAM ===
-  "HUTAN", "GUNUNG","PANTAI","SUNGAI","KOLAM", "SAWAH", "KEBUN",
-  "BUKIT", "DANAU", "PADANG","LERENG","JURANG","TEBING","PASIR",
-  "TANAH", "KARANG","OMBAK", "ANGIN", "HUJAN", "PETIR", "TOPAN",
-  "BADAI", "KABUT", "EMBUN", "FAJAR", "SENJA", "MALAM", "SUBUH",
-  "SIANG", "UDARA", "RUMPUT","LUMUT", "PAKIS", "BUNGA", "POHON",
+// ============================================================
+// BROADCAST
+// ============================================================
+function broadcast(data) {
+  const msg = JSON.stringify(data);
+  wss.clients.forEach(c => { if (c.readyState === WebSocket.OPEN) c.send(msg); });
+}
 
-  // === INDONESIA - HEWAN ===
-  "KUDA",  "SAPI",  "KAMBING","ANJING","KUCING","TIKUS", "KELINCI",
-  "BEBEK", "ITIK",  "ELANG", "BANGAU","MERAK", "BUAYA", "KATAK",
-  "KODOK", "LEBAH", "KUPU",  "SEMUT", "LALAT", "HARIMAU","GAJAH",
-  "ULAR",  "MONYET","KERBAU","DOMBA", "BABI",  "SINGA", "RUSA",
-  "BERUANG","MACAN","SERIGALA","RUBAH","LANDAK","TUPAI","MUSANG",
+// ============================================================
+// ██╗    ██╗ ██████╗ ██████╗ ██████╗ ██╗     ███████╗
+// ██║    ██║██╔═══██╗██╔══██╗██╔══██╗██║     ██╔════╝
+// ██║ █╗ ██║██║   ██║██████╔╝██║  ██║██║     █████╗
+// ██║███╗██║██║   ██║██╔══██╗██║  ██║██║     ██╔══╝
+// ╚███╔███╔╝╚██████╔╝██║  ██║██████╔╝███████╗███████╗
+//  ╚══╝╚══╝  ╚═════╝ ╚═╝  ╚═╝╚═════╝ ╚══════╝╚══════╝
+// ============================================================
 
-  // === INDONESIA - MAKANAN ===
-  "NASI",  "ROTI",  "BUBUR", "SOTO",  "SATE",  "BAKSO", "GULAI",
-  "OPOR",  "RAWON", "PEMPEK","TEMPE", "TAHU",  "TERASI","KECAP",
-  "SAMBAL","BUMBU", "DAGING","TELUR", "SUSU",  "KEJU",  "GARAM",
-  "GULA",  "MERICA","JAHE",  "KUNYIT","SERAI",  "MADU",  "SANTAN",
-  "MANGGA","PEPAYA","PISANG","JERUK","SEMANGKA","MELON","NANAS",
-  "DURIAN","MANGGIS","SALAK","JAMBU","KELAPA","ALPUKAT","LEMON",
-  "KOPI",  "TEH",   "JAMU",  "SIRUP", "SODA",  "RENDANG","LODEH",
-  "GADO",  "TONGSENG","SEMUR","BALADO","DENDENG","PECEL","RUJAK",
-  "LONTONG","KETUPAT","LEPET","LUPIS","KLEPON","ONDE","LEMPER",
-
-  // === INDONESIA - TUBUH ===
-  "HIDUNG","MULUT", "TELINGA","PIPI", "DAHI",  "DAGU",  "LEHER",
-  "BAHU",  "LENGAN","TANGAN","JARI",  "KUKU",  "DADA",  "PERUT",
-  "KAKI",  "LUTUT", "BETIS", "TUMIT", "TULANG","OTOT",  "DARAH",
-  "JANTUNG","PARU", "HATI",  "GINJAL","OTAK",  "KULIT", "RAMBUT",
-  "BIBIR", "GIGI",  "LIDAH", "NAFAS", "ALIS",  "BULU",  "TELAPAK",
-
-  // === INDONESIA - RUMAH & BENDA ===
-  "KURSI", "MEJA",  "LEMARI","KASUR", "BANTAL","TIKAR", "KARPET",
-  "PINTU", "ATAP",  "LANTAI","DINDING","TIANG","TANGGA","DAPUR",
-  "KAMAR", "TERAS", "GARASI","SUMUR", "PAGAR", "PIRING","GELAS",
-  "SENDOK","GARPU", "PISAU", "WAJAN", "PANCI", "EMBER", "GAYUNG",
-  "SABUN", "SIKAT", "SAPU",  "KAIN",  "BENANG","JARUM", "LAMPU",
-  "KIPAS", "KULKAS","MESIN", "POMPA", "KUNCI", "GEMBOK","TALI",
-  "BUKU",  "PENSIL","PENA",  "GUNTING","LEM",  "KERTAS","AMPLOP",
-  "CERMIN","SISIR", "BEDAK", "PARFUM","PAYUNG","TONGKAT","TANGGA",
-
-  // === INDONESIA - PAKAIAN ===
-  "BAJU",  "CELANA","KEMEJA","KAOS",  "JAKET", "MANTEL","SEPATU",
-  "SANDAL","TOPI",  "JILBAB","KERUDUNG","IKAT","SABUK", "DOMPET",
-  "CINCIN","GELANG","KALUNG","ANTING","KACAMATA","SARUNG","BLUS",
-  "GAUN",  "SYAL",  "SELENDANG","ROMPI","KAUS", "BARET","HELM",
-
-  // === INDONESIA - PEKERJAAN ===
-  "GURU",  "DOKTER","POLISI","PETANI","NELAYAN","SOPIR","PILOT",
-  "HAKIM", "JAKSA", "INSINYUR","ARSITEK","AKUNTAN","BIDAN","PERAWAT",
-  "ARTIS", "AKTOR", "MUSISI","PELUKIS","PENULIS","EDITOR","DESAINER",
-  "JURNALIS","PENELITI","ILMUWAN","PENGUSAHA","PEDAGANG","BURUH","PEGAWAI",
-
-  // === INDONESIA - TRANSPORTASI ===
-  "MOBIL", "MOTOR", "SEPEDA","TRUK",  "BAJAJ", "BECAK", "KAPAL",
-  "PERAHU","SAMPAN","KERETA","METRO", "PESAWAT","HELIKOPTER","ROKET",
-
-  // === INDONESIA - SIFAT ===
-  "BESAR", "KECIL", "PANJANG","PENDEK","TINGGI","RENDAH","LEBAR",
-  "BERAT", "RINGAN","TEBAL",  "TIPIS", "KASAR", "HALUS", "KERAS",
-  "PANAS", "DINGIN","HANGAT", "SEJUK", "KERING","BASAH", "CEPAT",
-  "LAMBAT","TERANG","GELAP",  "CERAH", "BERSIH","KOTOR", "BAGUS",
-  "JELEK", "CANTIK","TAMPAN", "INDAH", "BARU",  "LAMA",  "MAHAL",
-  "MURAH", "KAYA",  "MISKIN", "GEMUK", "KURUS", "SEHAT", "SAKIT",
-  "PINTAR","BODOH", "RAJIN",  "MALAS", "BERANI","TAKUT", "BAIK",
-  "JAHAT", "JUJUR", "SETIA",  "RAMAH", "SOMBONG","MEWAH","KUNO",
-  "MODERN","ANTIK", "ASLI",   "PALSU", "UTUH",  "RUSAK", "PENUH",
-  "KOSONG","TAJAM", "TUMPUL", "LICIN", "KASAR", "LEMBUT","KERAS",
-  "RAPUH", "KUAT",  "LEMAH",  "AKTIF", "PASIF", "SIBUK", "SANTAI",
-  "TENANG","RIBUT", "GELISAH","BAHAGIA","SEDIH","MARAH", "SENANG",
-
-  // === INDONESIA - KATA UMUM ===
-  "KEREN", "DALAM", "DEPAN", "UTARA", "SELATAN","TIMUR","BARAT",
-  "SUDAH", "BELUM", "TIDAK", "HARUS", "BOLEH",  "MUNGKIN","SELALU",
-  "SERING","KADANG","SANGAT","AGAK",  "CUKUP",  "TERLALU","PALING",
-  "SEMUA", "BANYAK","SEDIKIT","SETIAP","MASING", "LEBIH","KURANG",
-  "SAMA",  "BEDA",  "MIRIP",  "DEKAT", "JAUH",   "CINTA","KASIH",
-  "SAYANG","RINDU", "BANGGA", "MALU",  "TAKUT",  "BERANI","YAKIN",
-  "RAGU",  "HARAP", "IMPIAN", "NYATA", "MIMPI",  "WAKTU","ZAMAN",
-  "TAHUN", "BULAN", "MINGGU", "HARI",  "MENIT",  "DETIK","MASA",
-  "DUNIA", "ALAM",  "BUMI",   "LANGIT","LAUT",   "DARAT","UDARA",
-  "RAKYAT","BANGSA","NEGARA", "KOTA",  "DESA",   "KAMPUNG","PULAU",
-
-  // === ENGLISH - A ===
-  "ABOUT", "ABOVE", "ABUSE", "ACTOR", "ACUTE", "ADMIT", "ADOPT",
-  "AFTER", "AGAIN", "AGENT", "AGREE", "AHEAD", "ALARM", "ALBUM",
-  "ALERT", "ALIKE", "ALIVE", "ALLEY", "ALLOW", "ALONE", "ALONG",
-  "ALTAR", "ALTER", "ANGEL", "ANGER", "ANGLE", "ANGRY", "ANKLE",
-  "APART", "APPLE", "APPLY", "ARENA", "ARGUE", "ARISE", "ARMED",
-  "ARMOR", "ARRAY", "ARROW", "ASIDE", "ASSET", "ATLAS", "AVOID",
-  "ABBEY", "ADORE", "AGILE", "AMPLE", "AUDIO", "AZURE", "AISLE",
-  "ALOFT", "AMONG", "ANTIC", "APRON", "APTLY", "ARDOR", "AROMA",
-  "ARTSY", "ASCOT", "ATTIC", "AUGUR", "AWAKE", "AWARE", "AWFUL",
-
-  // === ENGLISH - B ===
-  "BADGE", "BASIC", "BASIS", "BATCH", "BEACH", "BEARD", "BEAST",
-  "BEGIN", "BEING", "BELOW", "BENCH", "BIRTH", "BLACK", "BLADE",
-  "BLAME", "BLAND", "BLANK", "BLAST", "BLAZE", "BLEED", "BLEND",
-  "BLESS", "BLIND", "BLOCK", "BLOOD", "BLOOM", "BLOWN", "BOARD",
-  "BONUS", "BOOST", "BOOTH", "BOUND", "BRAIN", "BRAND", "BRAVE",
-  "BREAD", "BREAK", "BREED", "BRICK", "BRIDE", "BRIEF", "BRING",
-  "BROAD", "BROKE", "BROWN", "BRUSH", "BUDDY", "BUILT", "BUNCH",
-  "BURST", "BUYER", "BAKER", "BATHE", "BANJO", "BAYOU", "BEFOG",
-  "BIRCH", "BISON", "BLIMP", "BLISS", "BLOAT", "BLUNT", "BLURB",
-  "BOGUS", "BORAX", "BOTCH", "BOXER", "BRACE", "BRAID", "BRASH",
-  "BRAWL", "BRAWN", "BRAZE", "BRINK", "BRISK", "BROIL", "BROOK",
-  "BROTH", "BROWS", "BRUTE", "BUDGE", "BULGE", "BULLY", "BUMPY",
-  "BUOY",  "BURNS", "BUSHY", "BUSTY",
-
-  // === ENGLISH - C ===
-  "CABIN", "CABLE", "CANDY", "CARRY", "CATCH", "CAUSE", "CHAIN",
-  "CHAIR", "CHALK", "CHAOS", "CHARM", "CHART", "CHASE", "CHEAP",
-  "CHECK", "CHEEK", "CHESS", "CHEST", "CHIEF", "CHILD", "CHOIR",
-  "CLAIM", "CLASS", "CLEAN", "CLEAR", "CLERK", "CLICK", "CLIFF",
-  "CLIMB", "CLOCK", "CLONE", "CLOSE", "CLOTH", "CLOUD", "COACH",
-  "COAST", "COMET", "COMIC", "CORAL", "COURT", "COVER", "CRACK",
-  "CRAFT", "CRANE", "CRASH", "CRAZY", "CREAM", "CREEK", "CRIME",
-  "CRISP", "CROSS", "CROWD", "CROWN", "CRUEL", "CRUSH", "CURVE",
-  "CYCLE", "CAMEO", "CARGO", "CEDAR", "CHAMP", "CHILL", "CIVIC",
-  "CIVIL", "CLAMP", "CLASH", "CLASP", "CLING", "CLINK", "CORAL",
-  "COUCH", "COUGH", "COULD", "CRAMP", "CRAVE", "CRIMP", "CRISP",
-  "CRUDE", "CRUST", "CRYPT", "CUBIC", "CURLY", "CUTIE",
-
-  // === ENGLISH - D ===
-  "DAILY", "DANCE", "DEATH", "DELAY", "DELTA", "DENSE", "DEPOT",
-  "DEPTH", "DEVIL", "DIRTY", "DITCH", "DIZZY", "DODGE", "DOING",
-  "DONOR", "DOUBT", "DOUGH", "DRAFT", "DRAIN", "DRAMA", "DRANK",
-  "DRAWN", "DREAD", "DREAM", "DRIFT", "DRINK", "DRIVE", "DROWN",
-  "DRUNK", "DWARF", "DWELL", "DADDY", "DANDY", "DATED", "DEBUT",
-  "DECOR", "DEEDS", "DEITY", "DISCO", "DITTY", "DODGY", "DOGMA",
-  "DOLLY", "DOWDY", "DOWNY", "DUSKY", "DUSTY", "DUTCH",
-
-  // === ENGLISH - E ===
-  "EAGER", "EARLY", "EARTH", "EIGHT", "ELITE", "EMPTY", "ENEMY",
-  "ENJOY", "ENTER", "ENTRY", "EQUAL", "ERROR", "ESSAY", "EVENT",
-  "EVERY", "EXACT", "EXIST", "EXTRA", "EASEL", "EERIE", "ELBOW",
-  "EMBER", "EMOTE", "EPOCH", "ETHIC", "EVOKE", "EXERT", "EXILE",
-  "EXULT", "ENVY",  "EXPEL", "EXTOL",
-
-  // === ENGLISH - F ===
-  "FABLE", "FAINT", "FAIRY", "FAITH", "FALSE", "FANCY", "FATAL",
-  "FEAST", "FEVER", "FIBER", "FIELD", "FIERY", "FIFTH", "FIGHT",
-  "FINAL", "FIRST", "FIXED", "FLAME", "FLASH", "FLASK", "FLESH",
-  "FLOAT", "FLOOD", "FLOOR", "FLOUR", "FLUID", "FOCUS", "FORCE",
-  "FORGE", "FORTH", "FORUM", "FOUND", "FRAME", "FRANK", "FRAUD",
-  "FRESH", "FRONT", "FROST", "FRUIT", "FULLY", "FUNNY", "FURRY",
-  "FADED", "FLAIR", "FLARE", "FLOCK", "FLORA", "FLUSH", "FOGGY",
-  "FOLLY", "FRAIL", "FREED", "FRISK", "FROTH", "FROZE", "FINCH",
-  "FJORD", "FIZZY", "FLAKY", "FLANK", "FLAPS", "FLUNG", "FLUTE",
-  "FOAMY", "FONDLY","FORTE", "FORTY", "FROND", "FRONT",
-
-  // === ENGLISH - G ===
-  "GAMMA", "GHOST", "GIANT", "GIVEN", "GLASS", "GLOBE", "GLOOM",
-  "GLORY", "GLOVE", "GOING", "GRACE", "GRADE", "GRAIN", "GRAND",
-  "GRANT", "GRAPE", "GRASP", "GRASS", "GRAVE", "GREAT", "GREED",
-  "GREEN", "GREET", "GRIEF", "GRIND", "GROAN", "GROOM", "GROSS",
-  "GROUP", "GROVE", "GROWN", "GUARD", "GUESS", "GUEST", "GUIDE",
-  "GUILD", "GUILT", "GAUZE", "GAVEL", "GLEAM", "GLEAN", "GLIDE",
-  "GLINT", "GLOAT", "GNOME", "GORGE", "GOURD", "GRIMY", "GRIPE",
-  "GRUFF", "GUISE", "GULCH", "GULLY", "GUSTO", "GUSTY",
-
-  // === ENGLISH - H ===
-  "HABIT", "HARSH", "HASTE", "HAVEN", "HEART", "HEAVY", "HEDGE",
-  "HINGE", "HOUSE", "HUMAN", "HUMID", "HUMOR", "HAZEL", "HEIST",
-  "HELIX", "HIPPO", "HITCH", "HOARD", "HORDE", "HOUND", "HYPER",
-  "HANDY", "HARDY", "HASTY", "HAUNT", "HEADY", "HIPPY", "HOMER",
-  "HONEY", "HOPPY", "HORNY", "HOTLY", "HUSKY",
-
-  // === ENGLISH - I ===
-  "IDEAL", "IMAGE", "INDEX", "INPUT", "ISSUE", "IVORY", "IMPEL",
-  "INEPT", "INFER", "INNER", "INTER", "INTRO", "IONIC", "IRATE",
-
-  // === ENGLISH - J ===
-  "JEWEL", "JOINT", "JUDGE", "JUICE", "JUMBO", "JAZZY", "JEANS",
-  "JERKY", "JOKER", "JOLLY", "JOUST", "JUMPY", "JUICY",
-
-  // === ENGLISH - K ===
-  "KARMA", "KNIFE", "KNOCK", "KNOWN", "KAYAK", "KNEEL", "KNELT",
-  "KNOBS", "KNOLL", "KINKY", "KOOKY",
-
-  // === ENGLISH - L ===
-  "LABEL", "LANCE", "LARGE", "LASER", "LATER", "LAUGH", "LAYER",
-  "LEARN", "LEGAL", "LEVEL", "LIGHT", "LIMIT", "LIVER", "LOCAL",
-  "LODGE", "LOGIC", "LOOSE", "LOVER", "LOWER", "LOYAL", "LUCKY",
-  "LUNAR", "LANKY", "LARVA", "LATCH", "LEAFY", "LEAPT", "LEVER",
-  "LIMBO", "LINGO", "LITHE", "LLAMA", "LOFTY", "LUMPY", "LYRIC",
-  "LEMON", "LUSTY", "LACEY", "LAFFY", "LAKESIDE","LAUD","LEERY",
-  "LINGO", "LINTY", "LOFTY", "LOUSY", "LOWLY",
-
-  // === ENGLISH - M ===
-  "MAGIC", "MAJOR", "MAKER", "MANOR", "MAPLE", "MARCH", "MARSH",
-  "MATCH", "MAYOR", "MEANT", "MEDAL", "MEDIA", "MERCY", "MERIT",
-  "METAL", "MIGHT", "MIXED", "MODEL", "MONEY", "MONTH", "MORAL",
-  "MOTOR", "MOTTO", "MOUNT", "MOUSE", "MOUTH", "MOVED", "MUSIC",
-  "MANGO", "MAXIM", "MELEE", "MESSY", "MICRO", "MILKY", "MINTY",
-  "MISER", "MISTY", "MOCHA", "MOODY", "MOSSY", "MOUSY", "MUGGY",
-  "MURKY", "MUSHY", "MANLY", "MARBLE", "MANIA","MIRTH","MUTED",
-
-  // === ENGLISH - N ===
-  "NAIVE", "NERVE", "NEVER", "NEWER", "NIGHT", "NINJA", "NOBLE",
-  "NORTH", "NOTED", "NOVEL", "NYMPH", "NIFTY", "NIPPY", "NITRO",
-  "NOISY", "NOOSE", "NOTCH", "NUTTY", "NASTY", "NERDY", "NETTLE",
-
-  // === ENGLISH - O ===
-  "OCEAN", "OFFER", "OLIVE", "ONSET", "OPERA", "ORBIT", "ORDER",
-  "OUTER", "OASIS", "OMBRE", "OPTIC", "OVATE", "ODDLY",
-
-  // === ENGLISH - P ===
-  "PAINT", "PANEL", "PAPER", "PARTY", "PASTA", "PATCH", "PAUSE",
-  "PEACE", "PEARL", "PEDAL", "PENNY", "PHASE", "PHONE", "PHOTO",
-  "PIANO", "PILOT", "PITCH", "PIXEL", "PIZZA", "PLACE", "PLAIN",
-  "PLANE", "PLANT", "PLATE", "PLAZA", "POINT", "POKER", "POLAR",
-  "POUND", "POWER", "PRESS", "PRICE", "PRIDE", "PRIME", "PRINT",
-  "PRIZE", "PROBE", "PROOF", "PROUD", "PROVE", "PROXY", "PULSE",
-  "PURGE", "PANSY", "PASTY", "PEAKY", "PERKY", "PETTY", "PITHY",
-  "PLAID", "PLUMB", "POUTY", "PRAWN", "PRIVY", "PSALM", "PUTTY",
-  "PADDY", "PEPPY", "PIGGY", "PINKY", "PIVOT", "PLAZA", "PLUCK",
-  "PLUME", "POUFY", "PRANK", "PRISM", "PROWL", "PRUNE",
-
-  // === ENGLISH - Q ===
-  "QUEEN", "QUEST", "QUICK", "QUIET", "QUOTA", "QUOTE", "QUAFF",
-  "QUALM", "QUART", "QUASI", "QUIRK",
-
-  // === ENGLISH - R ===
-  "RADAR", "RADIO", "RAISE", "RALLY", "RANGE", "RAPID", "RATIO",
-  "REACH", "READY", "REALM", "REBEL", "REIGN", "RELAX", "REPAY",
-  "REPLY", "RESET", "RIGHT", "RIGID", "RISKY", "RIVAL", "RIVER",
-  "ROBOT", "ROCKY", "ROUGH", "ROUND", "ROYAL", "RULER", "RURAL",
-  "RUSTY", "RAVEN", "REGAL", "REMIX", "REPEL", "RESIN", "RETRO",
-  "RIDER", "ROGUE", "ROOMY", "ROWDY", "RUDDY", "RASPY", "RATTY",
-  "READY", "REEDY", "RISKY", "RITZY", "ROCKY", "ROOMY", "RUSTIC",
-
-  // === ENGLISH - S ===
-  "SAINT", "SAUCE", "SCALE", "SCARE", "SCENE", "SCOPE", "SCORE",
-  "SCOUT", "SEIZE", "SENSE", "SEVEN", "SHADE", "SHAFT", "SHAKE",
-  "SHALL", "SHAME", "SHAPE", "SHARE", "SHARK", "SHARP", "SHEEP",
-  "SHEER", "SHELF", "SHELL", "SHIFT", "SHINE", "SHIRT", "SHOCK",
-  "SHORE", "SHORT", "SHOUT", "SIGHT", "SILLY", "SINCE", "SIXTH",
-  "SKILL", "SKULL", "SLATE", "SLAVE", "SLEEP", "SLICE", "SLIDE",
-  "SLOPE", "SLOTH", "SMART", "SMOKE", "SNAKE", "SOLAR", "SOLID",
-  "SOLVE", "SONIC", "SORRY", "SOUTH", "SPARE", "SPEAK", "SPEAR",
-  "SPEED", "SPELL", "SPEND", "SPICE", "SPIKE", "SPINE", "SPLIT",
-  "SPOON", "SPORT", "SPRAY", "SQUAD", "STACK", "STAFF", "STAGE",
-  "STAIN", "STAMP", "STAND", "STARE", "START", "STATE", "STEAM",
-  "STEEL", "STEER", "STICK", "STILL", "STING", "STOCK", "STONE",
-  "STORE", "STORM", "STORY", "STRAP", "STRIP", "STUCK", "STUDY",
-  "STUFF", "STYLE", "SUGAR", "SUITE", "SUPER", "SURGE", "SWAMP",
-  "SWEAR", "SWEEP", "SWEET", "SWIFT", "SWIPE", "SWORD", "SAVVY",
-  "SERUM", "SHADY", "SHEEN", "SHRUB", "SILKY", "SIREN", "SKIMP",
-  "SKUNK", "SLINK", "SOGGY", "SOOTY", "SPANK", "SPAWN", "SPOOK",
-  "SPUNK", "SQUAT", "SQUID", "STAID", "STEAK", "STEED", "STOMP",
-  "STOIC", "STOUT", "STRAY", "STRUM", "STRUT", "SUEDE", "SULKY",
-  "SUNNY", "SURLY", "SWANK", "SWARM", "SWOON", "SAUCY", "SCALY",
-  "SCANT", "SCARY", "SEEDY", "SHAKY", "SHINY", "SLOPPY","SMOKY",
-  "SNAKY", "SNAPPY","SNOWY", "SOFTY", "SORE",  "SPEWY", "SPICY",
-  "SPIKY", "SPINY", "SPOOKY","STONY", "STUFFY","SUDSY", "SUNNY",
-  "SWAMPY",
-
-  // === ENGLISH - T ===
-  "TABLE", "TASTE", "TEACH", "TEMPO", "TENSE", "TENTH", "TERMS",
-  "THORN", "THREE", "THREW", "THROW", "THUMB", "TIMER", "TIRED",
-  "TITLE", "TOKEN", "TOUGH", "TOWEL", "TOWER", "TRACK", "TRADE",
-  "TRAIL", "TRAIN", "TRAIT", "TRICK", "TROOP", "TROVE", "TRUCK",
-  "TRULY", "TRUNK", "TRUST", "TRUTH", "TULIP", "TUTOR", "TWICE",
-  "TWIST", "TACKY", "TAFFY", "TALON", "TANGY", "TAUNT", "TAWNY",
-  "TEPID", "TERSE", "TIDAL", "TIMID", "TIPSY", "TITAN", "TOTEM",
-  "TRUCE", "TUBBY", "TUNIC", "TURBO", "TWILL", "TARDY", "TASTY",
-  "TEARY", "TESTY", "THICK", "THORNY","TINNY", "TIPPY", "TIRED",
-  "TOASTY","TOPSY", "TOTAL", "TOXIC", "TRENDY",
-
-  // === ENGLISH - U ===
-  "ULTRA", "UNCLE", "UNDER", "UNION", "UNITY", "UNTIL", "UPPER",
-  "USAGE", "ULCER", "UNIFY", "UNLIT", "UNMET", "UNZIP",
-
-  // === ENGLISH - V ===
-  "VALID", "VALUE", "VALVE", "VAPOR", "VAULT", "VIBES", "VIDEO",
-  "VIGOR", "VIRAL", "VIRUS", "VISIT", "VISTA", "VITAL", "VIVID",
-  "VOCAL", "VOTER", "VAGUE", "VALET", "VAUNT", "VEGAN", "VENOM",
-  "VERGE", "VERSE", "VEXED", "VILLA", "VISOR", "VIXEN", "VYING",
-
-  // === ENGLISH - W ===
-  "WATER", "WEARY", "WEAVE", "WEDGE", "WEIRD", "WHALE", "WHEEL",
-  "WHERE", "WHICH", "WHILE", "WHITE", "WHOLE", "WHOSE", "WIDER",
-  "WITCH", "WOMAN", "WORLD", "WORSE", "WORST", "WORTH", "WOULD",
-  "WOUND", "WRATH", "WRIST", "WROTE", "WACKY", "WAGED", "WAGER",
-  "WAGON", "WARTY", "WASTE", "WATCH", "WIMPY", "WINDY", "WISPY",
-  "WITTY", "WOOZY", "WRECK", "WRING", "WAFER", "WAKEY", "WANLY",
-  "WARTY", "WASHY", "WEEDY", "WELLY", "WETLY", "WHINY", "WORMY",
-
-  // === ENGLISH - X Y Z ===
-  "XENON", "XYLEM", "YACHT", "YIELD", "YOUNG", "YOUTH", "ZEAL",
-  "ZEBRA", "ZESTY", "ZILCH", "ZONAL",
+const WORDLE_WORDS = [
+  "ABBEY", "ABOUT", "ABOVE", "ABUSE", "ACTOR", "ACUTE", "ADMIT", "ADOPT",
+  "ADORE", "AFTER", "AGAIN", "AGENT", "AGILE", "AGREE", "AHEAD", "AISLE",
+  "AKTIF", "AKTOR", "ALARM", "ALBUM", "ALERT", "ALIKE", "ALIVE", "ALLEY",
+  "ALLOW", "ALOFT", "ALONE", "ALONG", "ALTAR", "ALTER", "AMONG", "AMPLE",
+  "ANGEL", "ANGER", "ANGIN", "ANGLE", "ANGRY", "ANKLE", "ANTIC", "ANTIK",
+  "APART", "APPLE", "APPLY", "APRON", "APTLY", "ARDOR", "ARENA", "ARGUE",
+  "ARISE", "ARMED", "ARMOR", "AROMA", "ARRAY", "ARROW", "ARTIS", "ARTSY",
+  "ASCOT", "ASIDE", "ASSET", "ATLAS", "ATTIC", "AUDIO", "AUGUR", "AVOID",
+  "AWAKE", "AWARE", "AWFUL", "AZURE", "BADAI", "BADGE", "BAGUS", "BAJAJ",
+  "BAKER", "BAKSO", "BANJO", "BARAT", "BARET", "BASAH", "BASIC", "BASIS",
+  "BATCH", "BATHE", "BAYOU", "BEACH", "BEARD", "BEAST", "BEBEK", "BECAK",
+  "BEDAK", "BEFOG", "BEGIN", "BEING", "BELOW", "BELUM", "BENCH", "BERAT",
+  "BESAR", "BETIS", "BIBIR", "BIDAN", "BIRCH", "BIRTH", "BISON", "BLACK",
+  "BLADE", "BLAME", "BLAND", "BLANK", "BLAST", "BLAZE", "BLEED", "BLEND",
+  "BLESS", "BLIMP", "BLIND", "BLISS", "BLOAT", "BLOCK", "BLOOD", "BLOOM",
+  "BLOWN", "BLUNT", "BLURB", "BOARD", "BODOH", "BOGUS", "BOLEH", "BONUS",
+  "BOOST", "BOOTH", "BORAX", "BOTCH", "BOUND", "BOXER", "BRACE", "BRAID",
+  "BRAIN", "BRAND", "BRASH", "BRAVE", "BRAWL", "BRAWN", "BRAZE", "BREAD",
+  "BREAK", "BREED", "BRICK", "BRIDE", "BRIEF", "BRING", "BRINK", "BRISK",
+  "BROAD", "BROIL", "BROKE", "BROOK", "BROTH", "BROWN", "BROWS", "BRUSH",
+  "BRUTE", "BUAYA", "BUBUR", "BUDDY", "BUDGE", "BUILT", "BUKIT", "BULAN",
+  "BULGE", "BULLY", "BUMBU", "BUMPY", "BUNCH", "BUNGA", "BURNS", "BURST",
+  "BURUH", "BUSHY", "BUSTY", "BUYER", "CABIN", "CABLE", "CAMEO", "CANDY",
+  "CARGO", "CARRY", "CATCH", "CAUSE", "CEDAR", "CEPAT", "CERAH", "CHAIN",
+  "CHAIR", "CHALK", "CHAMP", "CHAOS", "CHARM", "CHART", "CHASE", "CHEAP",
+  "CHECK", "CHEEK", "CHESS", "CHEST", "CHIEF", "CHILD", "CHILL", "CHOIR",
+  "CINTA", "CIVIC", "CIVIL", "CLAIM", "CLAMP", "CLASH", "CLASP", "CLASS",
+  "CLEAN", "CLEAR", "CLERK", "CLICK", "CLIFF", "CLIMB", "CLING", "CLINK",
+  "CLOCK", "CLONE", "CLOSE", "CLOTH", "CLOUD", "COACH", "COAST", "COMET",
+  "COMIC", "CORAL", "COUCH", "COUGH", "COULD", "COURT", "COVER", "CRACK",
+  "CRAFT", "CRAMP", "CRANE", "CRASH", "CRAVE", "CRAZY", "CREAM", "CREEK",
+  "CRIME", "CRIMP", "CRISP", "CROSS", "CROWD", "CROWN", "CRUDE", "CRUEL",
+  "CRUSH", "CRUST", "CRYPT", "CUBIC", "CUKUP", "CURLY", "CURVE", "CUTIE",
+  "CYCLE", "DADDY", "DAILY", "DALAM", "DANAU", "DANCE", "DANDY", "DAPUR",
+  "DARAH", "DARAT", "DATED", "DEATH", "DEBUT", "DECOR", "DEEDS", "DEITY",
+  "DEKAT", "DELAY", "DELTA", "DENSE", "DEPAN", "DEPOT", "DEPTH", "DETIK",
+  "DEVIL", "DIRTY", "DISCO", "DITCH", "DITTY", "DIZZY", "DODGE", "DODGY",
+  "DOGMA", "DOING", "DOLLY", "DOMBA", "DONOR", "DOUBT", "DOUGH", "DOWDY",
+  "DOWNY", "DRAFT", "DRAIN", "DRAMA", "DRANK", "DRAWN", "DREAD", "DREAM",
+  "DRIFT", "DRINK", "DRIVE", "DROWN", "DRUNK", "DUNIA", "DUSKY", "DUSTY",
+  "DUTCH", "DWARF", "DWELL", "EAGER", "EARLY", "EARTH", "EASEL", "EERIE",
+  "EIGHT", "ELANG", "ELBOW", "ELITE", "EMBER", "EMBUN", "EMOTE", "EMPTY",
+  "ENEMY", "ENJOY", "ENTER", "ENTRY", "EPOCH", "EQUAL", "ERROR", "ESSAY",
+  "ETHIC", "EVENT", "EVERY", "EVOKE", "EXACT", "EXERT", "EXILE", "EXIST",
+  "EXPEL", "EXTOL", "EXTRA", "EXULT", "FABLE", "FADED", "FAINT", "FAIRY",
+  "FAITH", "FAJAR", "FALSE", "FANCY", "FATAL", "FEAST", "FEVER", "FIBER",
+  "FIELD", "FIERY", "FIFTH", "FIGHT", "FINAL", "FINCH", "FIRST", "FIXED",
+  "FIZZY", "FJORD", "FLAIR", "FLAKY", "FLAME", "FLANK", "FLAPS", "FLARE",
+  "FLASH", "FLASK", "FLESH", "FLOAT", "FLOCK", "FLOOD", "FLOOR", "FLORA",
+  "FLOUR", "FLUID", "FLUNG", "FLUSH", "FLUTE", "FOAMY", "FOCUS", "FOGGY",
+  "FOLLY", "FORCE", "FORGE", "FORTE", "FORTH", "FORTY", "FORUM", "FOUND",
+  "FRAIL", "FRAME", "FRANK", "FRAUD", "FREED", "FRESH", "FRISK", "FROND",
+  "FRONT", "FROST", "FROTH", "FROZE", "FRUIT", "FULLY", "FUNNY", "FURRY",
+  "GAJAH", "GAMMA", "GARAM", "GARPU", "GAUZE", "GAVEL", "GELAP", "GELAS",
+  "GEMUK", "GHOST", "GIANT", "GIVEN", "GLASS", "GLEAM", "GLEAN", "GLIDE",
+  "GLINT", "GLOAT", "GLOBE", "GLOOM", "GLORY", "GLOVE", "GNOME", "GOING",
+  "GORGE", "GOURD", "GRACE", "GRADE", "GRAIN", "GRAND", "GRANT", "GRAPE",
+  "GRASP", "GRASS", "GRAVE", "GREAT", "GREED", "GREEN", "GREET", "GRIEF",
+  "GRIMY", "GRIND", "GRIPE", "GROAN", "GROOM", "GROSS", "GROUP", "GROVE",
+  "GROWN", "GRUFF", "GUARD", "GUESS", "GUEST", "GUIDE", "GUILD", "GUILT",
+  "GUISE", "GULAI", "GULCH", "GULLY", "GUSTO", "GUSTY", "HABIT", "HAKIM",
+  "HALUS", "HANDY", "HARAP", "HARDY", "HARSH", "HARUS", "HASTE", "HASTY",
+  "HAUNT", "HAVEN", "HAZEL", "HEADY", "HEART", "HEAVY", "HEDGE", "HEIST",
+  "HELIX", "HINGE", "HIPPO", "HIPPY", "HITCH", "HOARD", "HOMER", "HONEY",
+  "HOPPY", "HORDE", "HORNY", "HOTLY", "HOUND", "HOUSE", "HUJAN", "HUMAN",
+  "HUMID", "HUMOR", "HUSKY", "HUTAN", "HYPER", "IDEAL", "IMAGE", "IMPEL",
+  "INDAH", "INDEX", "INEPT", "INFER", "INNER", "INPUT", "INTER", "INTRO",
+  "IONIC", "IRATE", "ISSUE", "IVORY", "JAHAT", "JAKET", "JAKSA", "JAMBU",
+  "JARUM", "JAZZY", "JEANS", "JELEK", "JERKY", "JERUK", "JEWEL", "JOINT",
+  "JOKER", "JOLLY", "JOUST", "JUDGE", "JUICE", "JUICY", "JUJUR", "JUMBO",
+  "JUMPY", "KABUT", "KAMAR", "KAPAL", "KARMA", "KASAR", "KASIH", "KASUR",
+  "KATAK", "KAYAK", "KEBUN", "KECAP", "KECIL", "KERAS", "KEREN", "KINKY",
+  "KIPAS", "KNEEL", "KNELT", "KNIFE", "KNOBS", "KNOCK", "KNOLL", "KNOWN",
+  "KODOK", "KOLAM", "KOOKY", "KOTOR", "KULIT", "KUNCI", "KURSI", "KURUS",
+  "LABEL", "LACEY", "LAFFY", "LALAT", "LAMPU", "LANCE", "LANKY", "LARGE",
+  "LARVA", "LASER", "LATCH", "LATER", "LAUGH", "LAYER", "LEAFY", "LEAPT",
+  "LEARN", "LEBAH", "LEBAR", "LEBIH", "LEERY", "LEGAL", "LEHER", "LEMAH",
+  "LEMON", "LEPET", "LEVEL", "LEVER", "LICIN", "LIDAH", "LIGHT", "LIMBO",
+  "LIMIT", "LINGO", "LINTY", "LITHE", "LIVER", "LLAMA", "LOCAL", "LODEH",
+  "LODGE", "LOFTY", "LOGIC", "LOOSE", "LOUSY", "LOVER", "LOWER", "LOWLY",
+  "LOYAL", "LUCKY", "LUMPY", "LUMUT", "LUNAR", "LUPIS", "LUSTY", "LUTUT",
+  "LYRIC", "MACAN", "MAGIC", "MAHAL", "MAJOR", "MAKER", "MALAM", "MALAS",
+  "MANGO", "MANIA", "MANLY", "MANOR", "MAPLE", "MARAH", "MARCH", "MARSH",
+  "MATCH", "MAXIM", "MAYOR", "MEANT", "MEDAL", "MEDIA", "MELEE", "MELON",
+  "MENIT", "MERAK", "MERCY", "MERIT", "MESIN", "MESSY", "METAL", "METRO",
+  "MEWAH", "MICRO", "MIGHT", "MILKY", "MIMPI", "MINTY", "MIRIP", "MIRTH",
+  "MISER", "MISTY", "MIXED", "MOBIL", "MOCHA", "MODEL", "MONEY", "MONTH",
+  "MOODY", "MORAL", "MOSSY", "MOTOR", "MOTTO", "MOUNT", "MOUSE", "MOUSY",
+  "MOUTH", "MOVED", "MUGGY", "MULUT", "MURAH", "MURKY", "MUSHY", "MUSIC",
+  "MUTED", "NAFAS", "NAIVE", "NANAS", "NASTY", "NERDY", "NERVE", "NEVER",
+  "NEWER", "NIFTY", "NIGHT", "NINJA", "NIPPY", "NITRO", "NOBLE", "NOISY",
+  "NOOSE", "NORTH", "NOTCH", "NOTED", "NOVEL", "NUTTY", "NYATA", "NYMPH",
+  "OASIS", "OCEAN", "ODDLY", "OFFER", "OLIVE", "OMBAK", "OMBRE", "ONSET",
+  "OPERA", "OPTIC", "ORBIT", "ORDER", "OUTER", "OVATE", "PADDY", "PAGAR",
+  "PAINT", "PAKIS", "PALSU", "PANAS", "PANCI", "PANEL", "PANSY", "PAPER",
+  "PARTY", "PASIF", "PASIR", "PASTA", "PASTY", "PATCH", "PAUSE", "PEACE",
+  "PEAKY", "PEARL", "PECEL", "PEDAL", "PENNY", "PENUH", "PEPPY", "PERKY",
+  "PERUT", "PETIR", "PETTY", "PHASE", "PHONE", "PHOTO", "PIANO", "PIGGY",
+  "PILOT", "PINKY", "PINTU", "PISAU", "PITCH", "PITHY", "PIVOT", "PIXEL",
+  "PIZZA", "PLACE", "PLAID", "PLAIN", "PLANE", "PLANT", "PLATE", "PLAZA",
+  "PLUCK", "PLUMB", "PLUME", "POHON", "POINT", "POKER", "POLAR", "POMPA",
+  "POUFY", "POUND", "POUTY", "POWER", "PRANK", "PRAWN", "PRESS", "PRICE",
+  "PRIDE", "PRIME", "PRINT", "PRISM", "PRIVY", "PRIZE", "PROBE", "PROOF",
+  "PROUD", "PROVE", "PROWL", "PROXY", "PRUNE", "PSALM", "PULAU", "PULSE",
+  "PURGE", "PUTTY", "QUAFF", "QUALM", "QUART", "QUASI", "QUEEN", "QUEST",
+  "QUICK", "QUIET", "QUIRK", "QUOTA", "QUOTE", "RADAR", "RADIO", "RAISE",
+  "RAJIN", "RALLY", "RAMAH", "RANGE", "RAPID", "RAPUH", "RASPY", "RATIO",
+  "RATTY", "RAVEN", "RAWON", "REACH", "READY", "REALM", "REBEL", "REEDY",
+  "REGAL", "REIGN", "RELAX", "REMIX", "REPAY", "REPEL", "REPLY", "RESET",
+  "RESIN", "RETRO", "RIBUT", "RIDER", "RIGHT", "RIGID", "RINDU", "RISKY",
+  "RITZY", "RIVAL", "RIVER", "ROBOT", "ROCKY", "ROGUE", "ROKET", "ROMPI",
+  "ROOMY", "ROUGH", "ROUND", "ROWDY", "ROYAL", "RUBAH", "RUDDY", "RUJAK",
+  "RULER", "RURAL", "RUSAK", "RUSTY", "SABUK", "SABUN", "SAINT", "SAKIT",
+  "SALAK", "SAUCE", "SAUCY", "SAVVY", "SAWAH", "SCALE", "SCALY", "SCANT",
+  "SCARE", "SCARY", "SCENE", "SCOPE", "SCORE", "SCOUT", "SEDIH", "SEEDY",
+  "SEHAT", "SEIZE", "SEJUK", "SEMUA", "SEMUR", "SEMUT", "SENJA", "SENSE",
+  "SERAI", "SERUM", "SETIA", "SEVEN", "SHADE", "SHADY", "SHAFT", "SHAKE",
+  "SHAKY", "SHALL", "SHAME", "SHAPE", "SHARE", "SHARK", "SHARP", "SHEEN",
+  "SHEEP", "SHEER", "SHELF", "SHELL", "SHIFT", "SHINE", "SHINY", "SHIRT",
+  "SHOCK", "SHORE", "SHORT", "SHOUT", "SHRUB", "SIANG", "SIBUK", "SIGHT",
+  "SIKAT", "SILKY", "SILLY", "SINCE", "SINGA", "SIREN", "SIRUP", "SISIR",
+  "SIXTH", "SKILL", "SKIMP", "SKULL", "SKUNK", "SLATE", "SLAVE", "SLEEP",
+  "SLICE", "SLIDE", "SLINK", "SLOPE", "SLOTH", "SMART", "SMOKE", "SMOKY",
+  "SNAKE", "SNAKY", "SNOWY", "SOFTY", "SOGGY", "SOLAR", "SOLID", "SOLVE",
+  "SONIC", "SOOTY", "SOPIR", "SORRY", "SOUTH", "SPANK", "SPARE", "SPAWN",
+  "SPEAK", "SPEAR", "SPEED", "SPELL", "SPEND", "SPEWY", "SPICE", "SPICY",
+  "SPIKE", "SPIKY", "SPINE", "SPINY", "SPLIT", "SPOOK", "SPOON", "SPORT",
+  "SPRAY", "SPUNK", "SQUAD", "SQUAT", "SQUID", "STACK", "STAFF", "STAGE",
+  "STAID", "STAIN", "STAMP", "STAND", "STARE", "START", "STATE", "STEAK",
+  "STEAM", "STEED", "STEEL", "STEER", "STICK", "STILL", "STING", "STOCK",
+  "STOIC", "STOMP", "STONE", "STONY", "STORE", "STORM", "STORY", "STOUT",
+  "STRAP", "STRAY", "STRIP", "STRUM", "STRUT", "STUCK", "STUDY", "STUFF",
+  "STYLE", "SUBUH", "SUDAH", "SUDSY", "SUEDE", "SUGAR", "SUITE", "SULKY",
+  "SUMUR", "SUNNY", "SUPER", "SURGE", "SURLY", "SWAMP", "SWANK", "SWARM",
+  "SWEAR", "SWEEP", "SWEET", "SWIFT", "SWIPE", "SWOON", "SWORD", "TABLE",
+  "TACKY", "TAFFY", "TAHUN", "TAJAM", "TAKUT", "TALON", "TANAH", "TANGY",
+  "TARDY", "TASTE", "TASTY", "TAUNT", "TAWNY", "TEACH", "TEARY", "TEBAL",
+  "TELUR", "TEMPE", "TEMPO", "TENSE", "TENTH", "TEPID", "TERAS", "TERMS",
+  "TERSE", "TESTY", "THICK", "THORN", "THREE", "THREW", "THROW", "THUMB",
+  "TIANG", "TIDAK", "TIDAL", "TIKAR", "TIKUS", "TIMER", "TIMID", "TIMUR",
+  "TINNY", "TIPIS", "TIPPY", "TIPSY", "TIRED", "TITAN", "TITLE", "TOKEN",
+  "TOPAN", "TOPSY", "TOTAL", "TOTEM", "TOUGH", "TOWEL", "TOWER", "TOXIC",
+  "TRACK", "TRADE", "TRAIL", "TRAIN", "TRAIT", "TRICK", "TROOP", "TROVE",
+  "TRUCE", "TRUCK", "TRULY", "TRUNK", "TRUST", "TRUTH", "TUBBY", "TULIP",
+  "TUMIT", "TUNIC", "TUPAI", "TURBO", "TUTOR", "TWICE", "TWILL", "TWIST",
+  "UDARA", "ULCER", "ULTRA", "UNCLE", "UNDER", "UNIFY", "UNION", "UNITY",
+  "UNLIT", "UNMET", "UNTIL", "UNZIP", "UPPER", "USAGE", "UTARA", "VAGUE",
+  "VALET", "VALID", "VALUE", "VALVE", "VAPOR", "VAULT", "VAUNT", "VEGAN",
+  "VENOM", "VERGE", "VERSE", "VEXED", "VIBES", "VIDEO", "VIGOR", "VILLA",
+  "VIRAL", "VIRUS", "VISIT", "VISOR", "VISTA", "VITAL", "VIVID", "VIXEN",
+  "VOCAL", "VOTER", "VYING", "WACKY", "WAFER", "WAGED", "WAGER", "WAGON",
+  "WAJAN", "WAKEY", "WAKTU", "WANLY", "WARTY", "WASHY", "WASTE", "WATCH",
+  "WATER", "WEARY", "WEAVE", "WEDGE", "WEEDY", "WEIRD", "WELLY", "WETLY",
+  "WHALE", "WHEEL", "WHERE", "WHICH", "WHILE", "WHINY", "WHITE", "WHOLE",
+  "WHOSE", "WIDER", "WIMPY", "WINDY", "WISPY", "WITCH", "WITTY", "WOMAN",
+  "WOOZY", "WORLD", "WORMY", "WORSE", "WORST", "WORTH", "WOULD", "WOUND",
+  "WRATH", "WRECK", "WRING", "WRIST", "WROTE", "XENON", "XYLEM", "YACHT",
+  "YAKIN", "YIELD", "YOUNG", "YOUTH", "ZAMAN", "ZEBRA", "ZESTY", "ZILCH",
+  "ZONAL",
 ];
 
-// Filter hanya kata 5 huruf & hapus duplikat
-const FILTERED_WORDS = [...new Set(WORD_LIST.filter(w => w.length === 5))];
-console.log(`📚 Total kata valid: ${FILTERED_WORDS.length}`);
+const ROUND_DURATION_WORDLE = 120;
 
-// =============================================
-// GAME STATE
-// =============================================
-const ROUND_DURATION = 120; // 2 menit
-
-let gameState = {
-  secretWord: "",
-  guesses: [],
-  isActive: false,
-  roundNumber: 0,
-  winner: null,
-  tiktokUser: "",
-  connected: false,
+let wordleState = {
+  secretWord  : "",
+  guesses     : [],
+  isActive    : false,
+  roundNumber : 0,
+  winner      : null,
+  tiktokUser  : "",
+  connected   : false,
   roundEndTime: null,
 };
 
-let roundTimer = null;
+let wordleTimer      = null;
+let wordleConnection = null;
 
-let tiktokConnection = null;
-
-function getRandomWord() {
-  return FILTERED_WORDS[Math.floor(Math.random() * FILTERED_WORDS.length)];
+function wordleGetRandom() {
+  return WORDLE_WORDS[Math.floor(Math.random() * WORDLE_WORDS.length)];
 }
 
-function checkGuess(guess, secret) {
-  const result = [];
-  const secretArr = secret.split("");
-  const guessArr = guess.split("");
-  const secretUsed = Array(5).fill(false);
-  const guessUsed = Array(5).fill(false);
+function wordleCheck(guess, secret) {
+  const result     = Array(5).fill("absent");
+  const secUsed    = Array(5).fill(false);
+  const guessUsed  = Array(5).fill(false);
 
   for (let i = 0; i < 5; i++) {
-    if (guessArr[i] === secretArr[i]) {
+    if (guess[i] === secret[i]) {
       result[i] = "correct";
-      secretUsed[i] = true;
-      guessUsed[i] = true;
+      secUsed[i] = guessUsed[i] = true;
     }
   }
-
   for (let i = 0; i < 5; i++) {
     if (guessUsed[i]) continue;
     for (let j = 0; j < 5; j++) {
-      if (secretUsed[j]) continue;
-      if (guessArr[i] === secretArr[j]) {
+      if (secUsed[j]) continue;
+      if (guess[i] === secret[j]) {
         result[i] = "present";
-        secretUsed[j] = true;
-        guessUsed[i] = true;
+        secUsed[j] = true;
         break;
       }
     }
-    if (!result[i]) result[i] = "absent";
   }
-
   return result;
 }
 
-function broadcast(data) {
-  const msg = JSON.stringify(data);
-  wss.clients.forEach(client => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(msg);
-    }
-  });
-}
+function wordleStartRound() {
+  if (wordleTimer) { clearTimeout(wordleTimer); wordleTimer = null; }
 
-function startNewRound() {
-  // Clear timer lama
-  if (roundTimer) { clearTimeout(roundTimer); roundTimer = null; }
+  wordleState.secretWord   = wordleGetRandom();
+  wordleState.guesses      = [];
+  wordleState.isActive     = true;
+  wordleState.winner       = null;
+  wordleState.roundEndTime = Date.now() + ROUND_DURATION_WORDLE * 1000;
+  wordleState.roundNumber++;
 
-  gameState.secretWord = getRandomWord();
-  gameState.guesses = [];
-  gameState.isActive = true;
-  gameState.winner = null;
-  gameState.roundNumber++;
-  gameState.roundEndTime = Date.now() + ROUND_DURATION * 1000;
+  console.log(`🟩 [WORDLE] Ronde ${wordleState.roundNumber} — ${wordleState.secretWord}`);
 
-  console.log(`🎮 Round ${gameState.roundNumber} started! Word: ${gameState.secretWord} (${ROUND_DURATION}s)`);
-
-  broadcast({
-    type: "NEW_ROUND",
-    roundNumber: gameState.roundNumber,
-    wordLength: gameState.secretWord.length,
-    duration: ROUND_DURATION,
-    roundEndTime: gameState.roundEndTime,
+  broadcast({ game: "wordle", type: "NEW_ROUND",
+    roundNumber : wordleState.roundNumber,
+    duration    : ROUND_DURATION_WORDLE,
+    roundEndTime: wordleState.roundEndTime,
   });
 
-  // Timer habis → game over
-  roundTimer = setTimeout(() => {
-    if (!gameState.isActive) return;
-    gameState.isActive = false;
-    broadcast({
-      type: "GAME_OVER",
-      word: gameState.secretWord,
-      totalGuesses: gameState.guesses.length,
-      reason: "timeout"
-    });
-    setTimeout(() => startNewRound(), 8000);
-  }, ROUND_DURATION * 1000);
+  wordleTimer = setTimeout(() => {
+    if (!wordleState.isActive) return;
+    wordleState.isActive = false;
+    broadcast({ game: "wordle", type: "GAME_OVER", word: wordleState.secretWord, totalGuesses: wordleState.guesses.length, reason: "timeout" });
+    setTimeout(wordleStartRound, 8000);
+  }, ROUND_DURATION_WORDLE * 1000);
 }
 
-function processGuess(userId, username, word, nickname = "", avatar = "") {
-  if (!gameState.isActive) return;
-  if (word.length !== 5) return;
+function wordleProcessGuess(userId, username, word, nickname, avatar) {
+  if (!wordleState.isActive) return;
+  const w = word.toUpperCase().replace(/[^A-Z]/g, "");
+  if (w.length !== 5) return;
 
-  const upperWord = word.toUpperCase();
+  if (wordleState.guesses.some(g => g.userId === userId && g.word === w)) return;
 
-  // Cek duplikat: userId yang sama + kata yang sama → skip
-  // Beda userId boleh nebak kata yang sama
-  const alreadyGuessed = gameState.guesses.some(
-    g => g.userId === userId && g.word === upperWord
-  );
-  if (alreadyGuessed) {
-    console.log(`⏭️  Skip: [${username}|${userId}] sudah nebak "${upperWord}"`);
-    return;
-  }
-  
-  console.log(`✅ Proses: [${username}|${userId}] "${upperWord}" (#${gameState.guesses.length + 1})`);
-
-  const result = checkGuess(upperWord, gameState.secretWord);
+  const result   = wordleCheck(w, wordleState.secretWord);
   const isWinner = result.every(r => r === "correct");
+  const guessData = { userId, username, nickname: nickname || username, avatar, word: w, result, timestamp: Date.now(), guessNumber: wordleState.guesses.length + 1 };
 
-  const guessData = {
-    userId,
-    username,
-    nickname: nickname || username,
-    avatar,
-    word: upperWord,
-    result,
-    timestamp: Date.now(),
-    guessNumber: gameState.guesses.length + 1
-  };
+  wordleState.guesses.push(guessData);
+  console.log(`  ✅ [WORDLE] ${username} → ${w} ${isWinner ? "🏆" : ""}`);
 
-  gameState.guesses.push(guessData);
-  console.log(`💬 [${username}] ${upperWord} → ${result.join(",")}${isWinner ? " 🏆 WINNER!" : ""}`);
-
-  broadcast({ type: "NEW_GUESS", guess: guessData, totalGuesses: gameState.guesses.length });
+  broadcast({ game: "wordle", type: "NEW_GUESS", guess: guessData, totalGuesses: wordleState.guesses.length });
 
   if (isWinner) {
-    gameState.winner = username;
-    gameState.isActive = false;
-    if (roundTimer) { clearTimeout(roundTimer); roundTimer = null; }
-    setTimeout(() => {
-      broadcast({ type: "GAME_WON", winner: username, nickname, avatar, word: gameState.secretWord, totalGuesses: gameState.guesses.length });
-    }, 500);
-    setTimeout(() => startNewRound(), 8000);
+    wordleState.isActive = false;
+    wordleState.winner   = username;
+    if (wordleTimer) { clearTimeout(wordleTimer); wordleTimer = null; }
+    setTimeout(() => broadcast({ game: "wordle", type: "GAME_WON", winner: username, nickname: guessData.nickname, avatar, word: wordleState.secretWord, totalGuesses: wordleState.guesses.length }), 500);
+    setTimeout(wordleStartRound, 8000);
   }
 }
 
-// =============================================
-// TIKTOK LIVE CONNECTION
-// =============================================
-async function connectTikTok(username, sessionId = "") {
-  if (tiktokConnection) {
-    try { tiktokConnection.disconnect(); } catch(e) {}
-    tiktokConnection = null;
-  }
+// ============================================================
+// ██████╗ ██████╗ ███╗   ██╗████████╗███████╗██╗  ██╗████████╗ ██████╗
+// ██╔════╝██╔═══██╗████╗  ██║╚══██╔══╝██╔════╝╚██╗██╔╝╚══██╔══╝██╔═══██╗
+// ██║     ██║   ██║██╔██╗ ██║   ██║   █████╗   ╚███╔╝    ██║   ██║   ██║
+// ██║     ██║   ██║██║╚██╗██║   ██║   ██╔══╝   ██╔██╗    ██║   ██║   ██║
+// ╚██████╗╚██████╔╝██║ ╚████║   ██║   ███████╗██╔╝ ██╗   ██║   ╚██████╔╝
+//  ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝   ╚═╝   ╚══════╝╚═╝  ╚═╝   ╚═╝    ╚═════╝
+// ============================================================
 
-  gameState.tiktokUser = username;
-  gameState.connected = false;
+// Contexto memakai vocabulary & vector yang SAMA dengan Sekata Buta
+// tapi state game terpisah sepenuhnya
+
+const ROUND_DURATION_CONTEXTO = 120;
+
+let contextoState = {
+  secretWord  : "",
+  guesses     : [],
+  isActive    : false,
+  roundNumber : 0,
+  winner      : null,
+  tiktokUser  : "",
+  connected   : false,
+  roundEndTime: null,
+  totalWords  : 0,
+};
+
+let contextoTimer      = null;
+let contextoConnection = null;
+
+async function contextoStartRound() {
+  if (contextoTimer) { clearTimeout(contextoTimer); contextoTimer = null; }
+
+  let secret, ok = false, attempts = 0;
+  do {
+    secret = SEKATA_SECRET_WORDS[Math.floor(Math.random()*SEKATA_SECRET_WORDS.length)];
+    ok = sekataComputeRankings(secret);
+    attempts++;
+  } while (!ok && attempts < 10);
+
+  if (!ok) { console.error("[CONTEXTO] Tidak bisa pilih kata rahasia!"); return; }
+
+  contextoState.secretWord   = secret;
+  contextoState.guesses      = [];
+  contextoState.isActive     = true;
+  contextoState.winner       = null;
+  contextoState.roundEndTime = Date.now() + ROUND_DURATION_CONTEXTO * 1000;
+  contextoState.roundNumber++;
+  contextoState.totalWords   = sekata_vocab.length;
+
+  console.log(\`🟣 [CONTEXTO] Ronde \${contextoState.roundNumber} — \${secret}\`);
+
+  broadcast({ game: "contexto", type: "NEW_ROUND",
+    roundNumber : contextoState.roundNumber,
+    duration    : ROUND_DURATION_CONTEXTO,
+    roundEndTime: contextoState.roundEndTime,
+    totalWords  : sekata_vocab.length,
+  });
+
+  contextoTimer = setTimeout(() => {
+    if (!contextoState.isActive) return;
+    contextoState.isActive = false;
+    broadcast({ game: "contexto", type: "GAME_OVER", word: contextoState.secretWord, totalGuesses: contextoState.guesses.length, reason: "timeout" });
+    setTimeout(contextoStartRound, 8000);
+  }, ROUND_DURATION_CONTEXTO * 1000);
+}
+
+function contextoProcessGuess(userId, username, word, nickname, avatar) {
+  if (!contextoState.isActive) return;
+  const w = word.toLowerCase().trim();
+  if (!w || w.length < 2) return;
+
+  if (contextoState.guesses.some(g => g.userId === userId && g.word === w)) return;
+
+  const rank     = sekataGetRank(w);
+  const isWinner = w === contextoState.secretWord.toLowerCase();
+  const guessData = { userId, username, nickname: nickname||username, avatar, word: w, rank, isWinner, timestamp: Date.now() };
+
+  contextoState.guesses.push(guessData);
+  console.log(\`  📊 [CONTEXTO] \${username} → "\${w}" rank #\${rank} \${isWinner?"🏆":""}\`);
+
+  if (rank === null) { broadcast({ game: "contexto", type: "WORD_UNKNOWN", username, word: w }); return; }
+
+  broadcast({ game: "contexto", type: "NEW_GUESS", guess: guessData, totalGuesses: contextoState.guesses.length });
+
+  if (isWinner) {
+    contextoState.isActive = false;
+    contextoState.winner   = username;
+    if (contextoTimer) { clearTimeout(contextoTimer); contextoTimer = null; }
+    setTimeout(() => broadcast({ game: "contexto", type: "GAME_WON", winner: username, nickname: guessData.nickname, avatar, word: contextoState.secretWord, totalGuesses: contextoState.guesses.length }), 500);
+    setTimeout(contextoStartRound, 10000);
+  }
+}
+
+
+// ============================================================
+// ██████╗ ██╗   ██╗██╗███████╗
+// ██╔═══██╗██║   ██║██║╚══███╔╝
+// ██║   ██║██║   ██║██║  ███╔╝
+// ██║▄▄ ██║██║   ██║██║ ███╔╝
+// ╚██████╔╝╚██████╔╝██║███████╗
+//  ╚══▀▀═╝  ╚═════╝ ╚═╝╚══════╝
+// ============================================================
+
+const QUESTION_DURATION = 30; // detik per soal
+
+// Bank soal default (streamer bisa tambah via API)
+const DEFAULT_QUESTIONS = [
+  { q: "Ibu kota Indonesia?", a: ["jakarta"] },
+  { q: "Berapa 7 × 8?", a: ["56"] },
+  { q: "Bahasa resmi Brasil?", a: ["portugis","portuguese"] },
+  { q: "Planet terbesar di tata surya?", a: ["jupiter"] },
+  { q: "Siapa penemu telepon?", a: ["graham bell","alexander bell","bell"] },
+  { q: "Gunung tertinggi di Indonesia?", a: ["puncak jaya","carstensz","cartensz"] },
+  { q: "Mata uang Jepang?", a: ["yen"] },
+  { q: "Berapa sisi segitiga?", a: ["3","tiga"] },
+  { q: "Nama lain vitamin C?", a: ["asam askorbat","ascorbic acid"] },
+  { q: "Negara terluas di dunia?", a: ["rusia","russia"] },
+  { q: "Berapa 12 × 12?", a: ["144"] },
+  { q: "Benua terkecil di dunia?", a: ["australia"] },
+  { q: "Tanggal kemerdekaan Indonesia?", a: ["17 agustus","17-8-1945","17 agustus 1945"] },
+  { q: "Warna bendera Indonesia?", a: ["merah putih"] },
+  { q: "Sungai terpanjang di dunia?", a: ["nil","nile"] },
+  { q: "Berapa planet di tata surya?", a: ["8","delapan"] },
+  { q: "Apa singkatan dari DNA?", a: ["deoxyribonucleic acid","asam deoksiribonukleat"] },
+  { q: "Presiden pertama Indonesia?", a: ["soekarno","sukarno"] },
+  { q: "Berapa sudut dalam segitiga sama sisi?", a: ["60","60 derajat"] },
+  { q: "Gas terbanyak di atmosfer bumi?", a: ["nitrogen"] },
+];
+
+let quizQuestions  = [...DEFAULT_QUESTIONS];
+let quizState = {
+  isActive      : false,
+  question      : null,  // { q, a[] }
+  questionIndex : 0,
+  answers       : [],    // { userId, username, nickname, avatar, answer, correct, timestamp }
+  winner        : null,  // user pertama yang benar
+  roundEndTime  : null,
+  tiktokUser    : "",
+  connected     : false,
+  leaderboard   : {},    // userId → { username, nickname, avatar, score }
+  questionNumber: 0,
+};
+
+let quizTimer      = null;
+let quizConnection = null;
+
+function quizNormalize(str) {
+  return str.toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, " ")
+    .replace(/\s+/g, " ").trim();
+}
+
+function quizCheckAnswer(input, answers) {
+  const norm = quizNormalize(input);
+  return answers.some(a => quizNormalize(a) === norm);
+}
+
+function quizNextQuestion() {
+  if (quizTimer) { clearTimeout(quizTimer); quizTimer = null; }
+  if (quizQuestions.length === 0) return;
+
+  const idx = quizState.questionNumber % quizQuestions.length;
+  quizState.question      = quizQuestions[idx];
+  quizState.answers       = [];
+  quizState.winner        = null;
+  quizState.isActive      = true;
+  quizState.roundEndTime  = Date.now() + QUESTION_DURATION * 1000;
+  quizState.questionNumber++;
+  quizState.questionIndex = idx;
+
+  console.log(\`❓ [QUIZ] Q\${quizState.questionNumber}: "\${quizState.question.q}" → \${quizState.question.a.join("/")}\`);
+
+  broadcast({ game: "quiz", type: "NEW_QUESTION",
+    question      : quizState.question.q,
+    questionNumber: quizState.questionNumber,
+    duration      : QUESTION_DURATION,
+    roundEndTime  : quizState.roundEndTime,
+  });
+
+  quizTimer = setTimeout(() => {
+    if (!quizState.isActive) return;
+    quizState.isActive = false;
+    console.log(\`⏰ [QUIZ] Waktu habis — jawaban: \${quizState.question.a[0]}\`);
+    broadcast({ game: "quiz", type: "QUESTION_TIMEOUT",
+      answer    : quizState.question.a[0],
+      leaderboard: quizGetLeaderboard(),
+    });
+    setTimeout(quizNextQuestion, 5000);
+  }, QUESTION_DURATION * 1000);
+}
+
+function quizProcessAnswer(userId, username, raw, nickname, avatar) {
+  if (!quizState.isActive) return;
+  if (quizState.winner) return; // sudah ada yang benar, tunggu soal berikutnya
+
+  const answer  = raw.trim();
+  const correct = quizCheckAnswer(answer, quizState.question.a);
+
+  const answerData = { userId, username, nickname: nickname||username, avatar, answer, correct, timestamp: Date.now() };
+  quizState.answers.push(answerData);
+
+  console.log(\`  \${correct?"✅":"❌"} [QUIZ] \${username}: "\${answer}"\`);
+
+  broadcast({ game: "quiz", type: "NEW_ANSWER", answer: answerData });
+
+  if (correct) {
+    quizState.winner   = username;
+    quizState.isActive = false;
+    if (quizTimer) { clearTimeout(quizTimer); quizTimer = null; }
+
+    // Update leaderboard
+    if (!quizState.leaderboard[userId]) {
+      quizState.leaderboard[userId] = { username, nickname: nickname||username, avatar, score: 0 };
+    }
+    quizState.leaderboard[userId].score++;
+
+    broadcast({ game: "quiz", type: "CORRECT_ANSWER",
+      winner      : username,
+      nickname    : nickname||username,
+      avatar,
+      answer      : quizState.question.a[0],
+      leaderboard : quizGetLeaderboard(),
+    });
+
+    setTimeout(quizNextQuestion, 6000);
+  }
+}
+
+function quizGetLeaderboard() {
+  return Object.values(quizState.leaderboard)
+    .sort((a,b) => b.score - a.score)
+    .slice(0, 10);
+}
+
+// ============================================================
+// TIKTOK — shared handler, tapi game terpisah
+// ============================================================
+async function connectTikTok(game, username, sessionId = "") {
+  // Putuskan koneksi lama kalau ada
+  const oldConn = game === "wordle" ? wordleConnection : sekataConnection;
+  if (oldConn) { try { oldConn.disconnect(); } catch(e) {} }
 
   const options = {
-    processInitialData: false,
+    processInitialData    : false,
     enableExtendedGiftInfo: false,
     enableWebsocketUpgrade: true,
     requestPollingIntervalMs: 2000,
-    clientParams: { app_language: "id-ID", device_platform: "web" }
+    clientParams: { app_language: "id-ID", device_platform: "web" },
   };
+  if (sessionId && sessionId.trim()) options.sessionId = sessionId.trim();
 
-  // Tambah sessionId kalau ada — diperlukan untuk akun yang privat atau butuh autentikasi
-  if (sessionId && sessionId.trim()) {
-    options.sessionId = sessionId.trim();
-    console.log("🔑 Menggunakan Session ID untuk autentikasi");
+  const conn = new WebcastPushConnection(username, options);
+
+  if (game === "wordle") {
+    wordleConnection = conn;
+    wordleState.tiktokUser = username;
+    wordleState.connected  = false;
+  } else if (game === "contexto") {
+    contextoConnection = conn;
+    contextoState.tiktokUser = username;
+    contextoState.connected  = false;
+  } else {
+    quizConnection = conn;
+    quizState.tiktokUser = username;
+    quizState.connected  = false;
   }
 
-  const connection = new WebcastPushConnection(username, options);
-
-  tiktokConnection = connection;
-
-  connection.on("connect", () => {
-    console.log(`✅ Connected to @${username}'s TikTok Live!`);
-    gameState.connected = true;
-    broadcast({ type: "TIKTOK_CONNECTED", username });
+  conn.on("connect", () => {
+    console.log(`✅ [${game.toUpperCase()}] Connected ke @${username}`);
+    if (game === "wordle") wordleState.connected = true;
+    else sekataState.connected = true;
+    broadcast({ game, type: "TIKTOK_CONNECTED", username });
   });
 
-  connection.on("disconnect", () => {
-    console.log("❌ TikTok disconnected");
-    gameState.connected = false;
-    broadcast({ type: "TIKTOK_DISCONNECTED" });
+  conn.on("disconnect", () => {
+    console.log(`❌ [${game.toUpperCase()}] Disconnect`);
+    if (game === "wordle") wordleState.connected = false;
+    else sekataState.connected = false;
+    broadcast({ game, type: "TIKTOK_DISCONNECTED" });
   });
 
-  connection.on("error", err => {
-    console.error("TikTok error:", err.message);
-    broadcast({ type: "TIKTOK_ERROR", message: err.message });
+  conn.on("error", err => {
+    broadcast({ game, type: "TIKTOK_ERROR", message: err.message });
   });
 
-  connection.on("chat", data => {
-    const comment = (data.comment || "").trim();
+  conn.on("chat", data => {
+    const comment  = (data.comment || "").trim();
     if (!comment) return;
 
-    // uniqueId = @handle TikTok, SELALU unik per akun, tidak pernah "0"
-    // Ini identifier terbaik dan paling konsisten
-    const uniqueId = data.uniqueId ? String(data.uniqueId) : null;
+    const userId   = String(data.uniqueId || (data.userId && Number(data.userId) > 0 ? data.userId : null) || `guest_${Date.now()}`);
+    const username = String(data.uniqueId || data.userId || "anon");
+    const nickname = String(data.nickname || username);
+    const avatar   = String(data.profilePictureUrl || "");
 
-    // userId numerik dari TikTok — hati-hati: bisa bernilai 0 untuk guest
-    // Jadi hanya pakai kalau > 0
-    const numericId = (data.userId && Number(data.userId) > 0) ? String(data.userId) : null;
+    const cleaned = comment.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z]/g, "").toLowerCase();
 
-    // Pilih identifier: uniqueId (@handle) > numericId > random
-    // Jangan pakai "0" sebagai identifier karena semua guest share nilai yang sama
-    const userId   = uniqueId || numericId || `guest_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
-    const username = uniqueId || numericId || "anon";
-    const nickname = data.nickname ? String(data.nickname) : username;
-    const avatar   = data.profilePictureUrl ? String(data.profilePictureUrl) : "";
+    broadcast({ game, type: "CHAT_MESSAGE", username, nickname, avatar, message: comment, isGuess: cleaned.length >= 2 });
 
-    // Bersihkan komentar: hapus emoji, aksen, spasi, simbol — sisakan huruf saja
-    const cleaned = comment
-      .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "")   // hapus aksen
-      .replace(/[^a-zA-Z]/g, "")          // hanya huruf A-Z
-      .toUpperCase();
-
-    const isGuess = cleaned.length === 5;
-
-    console.log(`💬 @${username} (id:${userId}): "${comment}"${isGuess ? ` → "${cleaned}" ✅` : ` (${cleaned.length} huruf, skip)`}`);
-
-    broadcast({ type: "CHAT_MESSAGE", username, nickname, avatar, message: comment, isGuess });
-
-    if (isGuess) processGuess(userId, username, cleaned, nickname, avatar);
+    if (game === "wordle") {
+      const upper = cleaned.toUpperCase();
+      if (upper.length === 5) wordleProcessGuess(userId, username, upper, nickname, avatar);
+    } else if (game === "contexto") {
+      if (cleaned.length >= 2) contextoProcessGuess(userId, username, cleaned, nickname, avatar);
+    } else if (game === "quiz") {
+      if (comment.trim().length >= 1) quizProcessAnswer(userId, username, comment.trim(), nickname, avatar);
+    }
   });
 
   try {
-    await connection.connect();
-    startNewRound();
+    await conn.connect();
+    if (game === "wordle") wordleStartRound();
+    else if (game === "contexto") await contextoStartRound();
+    else quizNextQuestion();
   } catch (err) {
-    console.error("Failed to connect:", err.message);
-    broadcast({ type: "TIKTOK_ERROR", message: `Gagal connect: ${err.message}` });
+    console.error(`Gagal connect [${game}]:`, err.message);
+    broadcast({ game, type: "TIKTOK_ERROR", message: `Gagal connect: ${err.message}` });
   }
 }
 
-// =============================================
-// REST API
-// =============================================
-app.post("/api/connect", async (req, res) => {
+// ============================================================
+// API — WORDLE
+// ============================================================
+app.post("/api/wordle/connect", async (req, res) => {
   const { username, sessionId } = req.body;
   if (!username) return res.json({ success: false, message: "Username diperlukan" });
-  try {
-    connectTikTok(username.replace("@", ""), sessionId || "");
-    res.json({ success: true, message: `Mencoba connect ke @${username}...` });
-  } catch(e) {
-    res.json({ success: false, message: e.message });
-  }
-});
-
-app.post("/api/disconnect", (req, res) => {
-  if (tiktokConnection) {
-    try { tiktokConnection.disconnect(); } catch(e) {}
-    tiktokConnection = null;
-  }
-  gameState.connected = false;
-  gameState.isActive = false;
+  connectTikTok("wordle", username.replace("@",""), sessionId||"");
   res.json({ success: true });
 });
 
-app.post("/api/new-round", (req, res) => {
-  startNewRound();
+app.post("/api/wordle/disconnect", (req, res) => {
+  if (wordleConnection) { try { wordleConnection.disconnect(); } catch(e) {} wordleConnection = null; }
+  if (wordleTimer)      { clearTimeout(wordleTimer); wordleTimer = null; }
+  wordleState.connected = false; wordleState.isActive = false;
   res.json({ success: true });
 });
 
-app.post("/api/test-guess", (req, res) => {
+app.post("/api/wordle/new-round",  (req, res) => { wordleStartRound(); res.json({ success: true }); });
+
+app.post("/api/wordle/test-guess", (req, res) => {
   const { username, word } = req.body;
-  // Pakai timestamp agar test bisa berulang dengan kata yang sama
-  const testId = `test_${Date.now()}`;
-  processGuess(testId, username || "test_user", word, username || "test_user", "");
+  wordleProcessGuess(`test_${Date.now()}`, username||"tester", (word||"").toUpperCase(), "Tester", "");
   res.json({ success: true });
 });
 
-app.get("/api/state", (req, res) => {
+app.get("/api/wordle/state", (req, res) => {
+  res.json({ ...wordleState, secretWord: wordleState.isActive ? "?????" : wordleState.secretWord, totalWords: WORDLE_WORDS.length, duration: ROUND_DURATION_WORDLE });
+});
+
+// ============================================================
+// API — CONTEXTO
+// ============================================================
+app.post("/api/contexto/connect", async (req, res) => {
+  const { username, sessionId } = req.body;
+  if (!username) return res.json({ success: false, message: "Username diperlukan" });
+  connectTikTok("contexto", username.replace("@",""), sessionId||"");
+  res.json({ success: true });
+});
+
+app.post("/api/contexto/disconnect", (req, res) => {
+  if (contextoConnection) { try { contextoConnection.disconnect(); } catch(e) {} contextoConnection = null; }
+  if (contextoTimer)      { clearTimeout(contextoTimer); contextoTimer = null; }
+  contextoState.connected = false; contextoState.isActive = false;
+  res.json({ success: true });
+});
+
+app.post("/api/contexto/new-round",  (req, res) => { contextoStartRound(); res.json({ success: true }); });
+
+app.post("/api/contexto/test-guess", (req, res) => {
+  const { username, word } = req.body;
+  contextoProcessGuess(\`test_\${Date.now()}\`, username||"tester", (word||"").toLowerCase(), "Tester", "");
+  res.json({ success: true });
+});
+
+app.get("/api/contexto/state", (req, res) => {
+  res.json({ ...contextoState, secretWord: contextoState.isActive ? "?????" : contextoState.secretWord, duration: ROUND_DURATION_CONTEXTO });
+});
+
+// ============================================================
+// API — QUIZ
+// ============================================================
+app.post("/api/quiz/connect", async (req, res) => {
+  const { username, sessionId } = req.body;
+  if (!username) return res.json({ success: false, message: "Username diperlukan" });
+  connectTikTok("quiz", username.replace("@",""), sessionId||"");
+  res.json({ success: true });
+});
+
+app.post("/api/quiz/disconnect", (req, res) => {
+  if (quizConnection) { try { quizConnection.disconnect(); } catch(e) {} quizConnection = null; }
+  if (quizTimer)      { clearTimeout(quizTimer); quizTimer = null; }
+  quizState.connected = false; quizState.isActive = false;
+  res.json({ success: true });
+});
+
+app.post("/api/quiz/next",   (req, res) => { quizNextQuestion(); res.json({ success: true }); });
+app.post("/api/quiz/reset",  (req, res) => {
+  quizState.leaderboard = {};
+  quizState.questionNumber = 0;
+  res.json({ success: true });
+});
+
+// Streamer bisa kirim soal custom: POST /api/quiz/questions [{q, a:[...]}, ...]
+app.post("/api/quiz/questions", (req, res) => {
+  const qs = req.body;
+  if (!Array.isArray(qs) || qs.length === 0) return res.json({ success: false, message: "Format salah" });
+  quizQuestions = qs.map(item => ({ q: item.q, a: Array.isArray(item.a) ? item.a : [item.a] }));
+  quizState.questionNumber = 0;
+  console.log(`📝 [QUIZ] ${quizQuestions.length} soal custom di-set`);
+  res.json({ success: true, count: quizQuestions.length });
+});
+
+app.get("/api/quiz/state", (req, res) => {
   res.json({
-    ...gameState,
-    totalWords: FILTERED_WORDS.length,
-    duration: ROUND_DURATION,
-    secretWord: gameState.isActive ? "?????" : gameState.secretWord
+    ...quizState,
+    question: quizState.isActive ? quizState.question?.q : null,
+    leaderboard: quizGetLeaderboard(),
+    duration: QUESTION_DURATION,
   });
 });
 
-// =============================================
+// ============================================================
 // WEBSOCKET
-// =============================================
-wss.on("connection", (ws) => {
+// ============================================================
+wss.on("connection", ws => {
   console.log("🌐 Browser connected");
-  ws.send(JSON.stringify({
-    type: "STATE",
-    state: { ...gameState, secretWord: gameState.isActive ? "?????" : gameState.secretWord }
+  // Kirim state kedua game sekaligus
+  ws.send(JSON.stringify({ type: "INIT",
+    wordle : { ...wordleState,  secretWord: wordleState.isActive  ? "?????" : wordleState.secretWord,  totalWords: WORDLE_WORDS.length, duration: ROUND_DURATION_WORDLE }
+    contexto: { ...contextoState, secretWord: contextoState.isActive ? "?????" : contextoState.secretWord, duration: ROUND_DURATION_CONTEXTO },
   }));
 });
 
-// =============================================
-// START SERVER
-// =============================================
+// ============================================================
+// START
+// ============================================================
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`\n🎮 TikTok Live WORDLE - ${FILTERED_WORDS.length} kata - Port ${PORT}\n`);
-});
+
+(async () => {
+  await sekataLoadVectors();
+  server.listen(PORT, () => {
+    console.log(`\n🎮 Game Hub — Port ${PORT}`);
+    console.log(`   Wordle : ${WORDLE_WORDS.length} kata`);
+    console.log(`   Sekata : ${sekata_vocab.length} kata`);
+    console.log(`   Buka   : http://localhost:${PORT}\n`);
+  });
+})();
