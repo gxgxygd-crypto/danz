@@ -2,744 +2,400 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kuis Live × TikTok</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Kuis TikTok Live</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 :root {
-  --bg:     #0d1117;
-  --card:   #111820;
-  --border: #1e2d45;
-  --text:   #e8eef8;
-  --muted:  #4a6a8a;
-  --yellow: #f59e0b;
-  --green:  #16a34a;
-  --red:    #ef4444;
-  --blue:   #3b82f6;
-  --purple: #8b5cf6;
+  --bg:#0a0a0f; --card:#111118; --border:#1e1e2e; --text:#f0f0ff;
+  --muted:#5a5a7a; --teal:#00bcd4; --green:#22c55e; --red:#ef4444;
+  --purple:#a855f7; --yellow:#f59e0b;
 }
+body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; max-width:480px; margin:0 auto; display:flex; flex-direction:column; overflow-x:hidden; }
 
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Inter', sans-serif;
-  min-height: 100vh;
-  display: grid;
-  grid-template-columns: 300px 1fr 280px;
-  grid-template-rows: 56px 1fr;
-  height: 100vh;
-  overflow: hidden;
-}
+/* HEADER */
+.header { background:#0d0d14; padding:10px 14px; display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--border); flex-shrink:0; }
+.back-btn { font-size:20px; text-decoration:none; color:var(--muted); }
+.game-icon { font-size:22px; }
+.header-title { font-size:17px; font-weight:800; flex:1; }
+.live-badge { background:var(--red); color:white; font-size:11px; font-weight:800; padding:3px 8px; border-radius:4px; letter-spacing:1px; }
+.ronde-badge { background:var(--teal); color:#000; font-size:12px; font-weight:800; padding:5px 12px; border-radius:999px; }
 
-/* ===== HEADER ===== */
-header {
-  grid-column: 1/-1;
-  background: #080d18;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  padding: 0 20px;
-  gap: 12px;
-}
+/* STATS */
+.stats-bar { display:flex; padding:8px 14px; border-bottom:1px solid var(--border); background:#0d0d14; flex-shrink:0; align-items:center; }
+.stat-pill { display:flex; align-items:center; gap:6px; background:#18181f; border:1px solid var(--border); border-radius:999px; padding:5px 14px; margin-right:8px; font-size:13px; font-weight:700; }
+.stat-pill .num { color:var(--teal); } .stat-pill .lbl { color:var(--muted); font-weight:500; }
+.connect-btn { margin-left:auto; background:transparent; border:1px solid var(--red); color:var(--red); font-size:12px; font-weight:700; padding:5px 12px; border-radius:999px; cursor:pointer; font-family:'Inter',sans-serif; }
+.connect-btn.live { border-color:var(--teal); color:var(--teal); background:rgba(0,188,212,.08); }
 
-.back-btn {
-  color: var(--muted);
-  font-size: 20px;
-  text-decoration: none;
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: color 0.2s;
-}
-.back-btn:hover { color: var(--text); }
+/* TIMER + INFO */
+.main-area { display:flex; align-items:flex-start; padding:16px 14px 10px; flex-shrink:0; min-height:110px; }
+.timer-circle-wrap { position:relative; width:90px; height:90px; flex-shrink:0; margin-right:14px; }
+.timer-svg { width:90px; height:90px; transform:rotate(-90deg); }
+.timer-track { fill:none; stroke:#1e1e2e; stroke-width:6; }
+.timer-fill  { fill:none; stroke:var(--teal); stroke-width:6; stroke-linecap:round; stroke-dasharray:251.2; stroke-dashoffset:251.2; transition:stroke-dashoffset 0.9s linear, stroke 0.3s; }
+.timer-fill.warn   { stroke:var(--yellow); }
+.timer-fill.danger { stroke:var(--red); }
+.timer-num { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:900; color:var(--teal); }
+.timer-num.warn   { color:var(--yellow); }
+.timer-num.danger { color:var(--red); animation:blink .5s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+.info-text { flex:1; padding-top:4px; }
+.info-line { font-size:12px; color:var(--muted); line-height:1.7; }
+.info-line strong { color:var(--text); }
 
-.logo {
-  font-size: 18px;
-  font-weight: 900;
-  letter-spacing: 1px;
-  color: var(--yellow);
-}
-.logo span { color: var(--muted); font-size: 12px; font-weight: 500; margin-left: 6px; }
+/* QUESTION */
+.question-wrap { padding:0 14px 10px; flex-shrink:0; }
+.question-box { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px 18px; transition:border-color .3s, background .3s; }
+.question-box.active  { border-color:rgba(0,188,212,.4); }
+.question-box.correct { border-color:var(--green); background:rgba(34,197,94,.06); }
+.question-box.timeout { border-color:var(--red); background:rgba(239,68,68,.05); }
+.question-label { font-size:10px; font-weight:700; letter-spacing:3px; color:var(--purple); text-transform:uppercase; margin-bottom:8px; }
+.question-text  { font-size:18px; font-weight:700; line-height:1.4; }
+.answer-reveal { display:none; margin-top:8px; font-size:13px; color:var(--muted); }
+.answer-reveal .ans { color:var(--green); font-weight:800; font-size:16px; }
 
-.status-badge {
-  margin-left: auto;
-  padding: 5px 14px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-  border: 1px solid var(--border);
-  color: var(--muted);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.status-badge.live { background: rgba(239,68,68,0.12); border-color: var(--red); color: var(--red); }
-.status-badge.live::before { content: "● "; }
+/* WINNER */
+.winner-banner { display:none; margin:0 14px 10px; background:rgba(34,197,94,.1); border:1px solid var(--green); border-radius:12px; padding:12px 16px; align-items:center; gap:10px; animation:slideDown .3s ease; flex-shrink:0; }
+.winner-banner.show { display:flex; }
+@keyframes slideDown { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+.winner-emoji { font-size:24px; } .winner-info { flex:1; }
+.winner-label { font-size:10px; font-weight:700; color:var(--green); letter-spacing:2px; text-transform:uppercase; }
+.winner-name  { font-size:15px; font-weight:800; }
+.winner-next  { font-size:11px; color:var(--muted); }
+.winner-answer{ font-size:18px; font-weight:900; color:#4ade80; flex-shrink:0; }
 
-/* ===== LEFT PANEL ===== */
-.left-panel {
-  background: #080d18;
-  border-right: 1px solid var(--border);
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  overflow-y: auto;
-}
-
-.panel-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 3px;
-  color: var(--muted);
-  text-transform: uppercase;
-}
-
-.input-field {
-  background: #0d1520;
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 10px 12px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-family: 'Inter', sans-serif;
-  width: 100%;
-  outline: none;
-  transition: border-color 0.2s;
-}
-.input-field:focus { border-color: var(--yellow); }
-
-.btn {
-  padding: 10px 14px;
-  border-radius: 8px;
-  border: none;
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  width: 100%;
-  transition: opacity 0.2s;
-}
-.btn:active { opacity: 0.75; }
-.btn-yellow  { background: var(--yellow); color: #000; }
-.btn-red     { background: var(--red);    color: #fff; }
-.btn-muted   { background: #1e2d45; color: var(--muted); }
-.btn-green   { background: var(--green);  color: #fff; }
-.btn-sm      { padding: 8px 12px; font-size: 12px; }
-
-.divider { height: 1px; background: var(--border); }
-
-.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.stat-box {
-  background: #0d1520;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 10px;
-  text-align: center;
-}
-.stat-val { font-size: 24px; font-weight: 900; color: var(--yellow); line-height: 1; }
-.stat-lbl { font-size: 10px; color: var(--muted); margin-top: 3px; letter-spacing: 1px; text-transform: uppercase; }
-
-/* ===== LEADERBOARD ===== */
-.lb-list { display: flex; flex-direction: column; gap: 5px; }
-.lb-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #0d1520;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 7px 10px;
-  font-size: 12px;
-}
-.lb-rank { font-weight: 900; width: 18px; text-align: center; color: var(--muted); flex-shrink: 0; }
-.lb-rank.gold   { color: #fbbf24; }
-.lb-rank.silver { color: #9ca3af; }
-.lb-rank.bronze { color: #c2956b; }
-.lb-avatar {
-  width: 24px; height: 24px;
-  border-radius: 50%; object-fit: cover; flex-shrink: 0;
-}
-.lb-avatar-ph {
-  width: 24px; height: 24px;
-  border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 800; color: white; flex-shrink: 0;
-}
-.lb-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-.lb-score { font-weight: 900; color: var(--yellow); flex-shrink: 0; }
-
-/* ===== MAIN AREA ===== */
-.main {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: radial-gradient(ellipse at 50% 0%, rgba(245,158,11,0.05), transparent 55%);
-}
-
-/* TIMER */
-.timer-wrap {
-  padding: 8px 20px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  border-bottom: 1px solid var(--border);
-  background: #080d18;
-  flex-shrink: 0;
-}
-.timer-num {
-  font-size: 28px;
-  font-weight: 900;
-  color: var(--yellow);
-  width: 44px;
-  transition: color 0.3s;
-  flex-shrink: 0;
-}
-.timer-num.warn   { color: var(--red); animation: pulse 0.5s infinite; }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-.timer-bar-bg { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
-.timer-bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--yellow), #fde68a);
-  border-radius: 3px;
-  transition: width 0.9s linear, background 0.3s;
-}
-.timer-bar-fill.warn { background: var(--red); }
-.q-counter { font-size: 12px; color: var(--muted); flex-shrink: 0; }
-
-/* QUESTION BOX */
-.question-wrap {
-  padding: 20px;
-  flex-shrink: 0;
-}
-
-.question-box {
-  background: var(--card);
-  border: 2px solid var(--border);
-  border-radius: 16px;
-  padding: 24px;
-  text-align: center;
-  min-height: 100px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: border-color 0.3s;
-}
-
-.question-box.active  { border-color: var(--yellow); }
-.question-box.correct { border-color: var(--green); background: rgba(22,163,74,0.08); }
-.question-box.timeout { border-color: var(--red);   background: rgba(239,68,68,0.06); }
-
-.question-text {
-  font-size: 22px;
-  font-weight: 800;
-  line-height: 1.4;
-  color: var(--text);
-}
-
-.answer-reveal {
-  display: none;
-  margin-top: 10px;
-  font-size: 14px;
-  color: var(--muted);
-}
-.answer-reveal .ans { color: var(--green); font-weight: 800; font-size: 18px; }
-
-.waiting-text {
-  font-size: 16px;
-  color: var(--muted);
-  font-weight: 600;
-}
-
-/* WINNER CARD */
-.winner-card {
-  display: none;
-  margin: 0 20px 16px;
-  background: linear-gradient(135deg, rgba(22,163,74,0.15), rgba(22,163,74,0.05));
-  border: 1px solid var(--green);
-  border-radius: 14px;
-  padding: 14px 18px;
-  align-items: center;
-  gap: 12px;
-  animation: slideDown 0.35s ease;
-  flex-shrink: 0;
-}
-.winner-card.show { display: flex; }
-@keyframes slideDown { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:translateY(0)} }
-.winner-emoji { font-size: 28px; }
-.winner-info { flex: 1; }
-.winner-label { font-size: 10px; font-weight: 700; color: var(--green); letter-spacing: 2px; text-transform: uppercase; }
-.winner-name  { font-size: 16px; font-weight: 800; }
-.winner-next  { font-size: 11px; color: var(--muted); margin-top: 2px; }
-.winner-answer { font-size: 20px; font-weight: 900; color: #4ade80; letter-spacing: 1px; flex-shrink: 0; }
-
-/* ANSWERS FEED */
-.answers-label { padding: 8px 20px 4px; font-size: 10px; font-weight: 700; color: var(--muted); letter-spacing: 3px; text-transform: uppercase; flex-shrink: 0; }
-.answers-feed {
-  flex: 1;
-  overflow-y: auto;
-  padding: 4px 16px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.answers-feed::-webkit-scrollbar { width: 3px; }
-.answers-feed::-webkit-scrollbar-thumb { background: var(--border); }
-
-.answer-card {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 8px 12px;
-  animation: fadeUp 0.2s ease;
-  flex-shrink: 0;
-}
+/* ANSWERS */
+.answers-section { flex-shrink:0; padding:0 14px 6px; }
+.section-label { display:flex; align-items:center; gap:7px; font-size:12px; font-weight:700; color:var(--muted); margin-bottom:8px; }
+.section-label .dot { width:8px; height:8px; border-radius:50%; background:var(--muted); }
+.answers-feed { display:flex; flex-direction:column; gap:5px; max-height:220px; overflow-y:auto; }
+.answers-feed::-webkit-scrollbar { width:2px; }
+.answers-feed::-webkit-scrollbar-thumb { background:var(--border); }
+.answer-card { display:flex; align-items:center; gap:10px; background:#0f0f18; border:1px solid var(--border); border-radius:10px; padding:9px 12px; animation:fadeUp .2s ease; }
 @keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
-.answer-card.correct-ans { border-color: var(--green); background: rgba(22,163,74,0.08); }
-.answer-card.wrong-ans   { opacity: 0.55; }
+.ans-icon { font-size:13px; flex-shrink:0; color:var(--red); font-weight:900; width:16px; }
+.ans-icon.correct { color:var(--green); }
+.ans-body { flex:1; overflow:hidden; }
+.ans-user { font-size:12px; font-weight:700; color:var(--teal); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ans-text { font-size:13px; color:#9999bb; font-style:italic; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ans-badge { font-size:11px; font-weight:800; padding:3px 10px; border-radius:5px; flex-shrink:0; letter-spacing:.5px; }
+.ans-badge.benar { background:var(--green); color:white; }
+.ans-badge.salah { background:var(--red);   color:white; }
+.chat-hint { font-size:12px; color:var(--muted); text-align:center; padding:8px 0 4px; }
 
-.ans-avatar { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
-.ans-avatar-ph { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:white; flex-shrink:0; }
-.ans-user { font-size:11px; color:var(--muted); }
-.ans-text { font-size:15px; font-weight:700; flex:1; }
-.ans-text.correct-text { color: #4ade80; }
-.ans-icon { font-size: 16px; flex-shrink: 0; }
+/* LEADERBOARD */
+.lb-section { flex:1; padding:0 14px 80px; overflow-y:auto; }
+.lb-section::-webkit-scrollbar { width:2px; }
+.lb-header { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.lb-title { font-size:15px; font-weight:800; } .lb-trophy { font-size:20px; }
+.lb-list { display:flex; flex-direction:column; gap:5px; }
+.lb-item { display:flex; align-items:center; gap:10px; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 14px; font-size:13px; }
+.lb-item.rank-1 { background:linear-gradient(135deg,#2a1f00,#1a1200); border-color:#d97706; }
+.lb-rank { font-size:18px; width:28px; text-align:center; flex-shrink:0; }
+.lb-rank.num { font-size:13px; font-weight:800; color:var(--muted); }
+.lb-avatar { width:32px; height:32px; border-radius:50%; object-fit:cover; flex-shrink:0; border:2px solid var(--border); }
+.lb-avatar-ph { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; color:white; flex-shrink:0; }
+.lb-name { flex:1; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lb-score { font-size:16px; font-weight:900; color:var(--yellow); flex-shrink:0; }
+.lb-sponsor { font-size:11px; color:var(--muted); margin-top:12px; text-align:center; }
+.lb-sponsor strong { color:var(--yellow); }
 
-/* ===== RIGHT PANEL (CHAT) ===== */
-.right-panel {
-  border-left: 1px solid var(--border);
-  background: #080d18;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.chat-header {
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-shrink: 0;
-}
-.chat-feed {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.chat-feed::-webkit-scrollbar { width: 3px; }
-.chat-feed::-webkit-scrollbar-thumb { background: var(--border); }
-.chat-item {
-  background: #0d1520;
-  border-radius: 7px;
-  padding: 6px 10px;
-  font-size: 12px;
-  border: 1px solid transparent;
-  animation: fadeUp 0.15s ease;
-}
-.chat-item.is-answer { border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.04); }
-.chat-user { font-size: 10px; color: var(--muted); margin-bottom: 2px; font-weight: 600; }
-.chat-msg  { color: var(--text); word-break: break-word; }
-.chat-item.is-answer .chat-msg { color: var(--yellow); font-weight: 700; }
+/* ADMIN BAR */
+.admin-bar { position:fixed; bottom:0; left:0; right:0; max-width:480px; margin:0 auto; background:#0a0a0f; border-top:1px solid var(--border); padding:8px 12px; display:flex; gap:7px; }
+.admin-input { flex:1; background:var(--card); border:1px solid var(--border); color:var(--text); padding:9px 12px; border-radius:8px; font-size:13px; font-family:'Inter',sans-serif; outline:none; }
+.admin-input:focus { border-color:var(--teal); }
+.admin-btn { background:var(--teal); border:none; color:#000; padding:9px 12px; border-radius:8px; font-size:12px; font-weight:800; cursor:pointer; flex-shrink:0; font-family:'Inter',sans-serif; }
+.admin-btn-sm { background:var(--border); border:none; color:var(--muted); padding:9px 10px; border-radius:8px; font-size:11px; font-weight:700; cursor:pointer; flex-shrink:0; font-family:'Inter',sans-serif; white-space:nowrap; }
 
-/* ===== NOTIF ===== */
-.notif {
-  grid-column: 1/-1;
-  padding: 7px 20px;
-  font-size: 13px;
-  display: none;
-}
-.notif.show   { display: block; }
-.notif.error  { background: rgba(239,68,68,0.1);  color: #fca5a5; border-bottom: 1px solid rgba(239,68,68,0.2); }
-.notif.success{ background: rgba(22,163,74,0.1);  color: #86efac; border-bottom: 1px solid rgba(22,163,74,0.2); }
-.notif.info   { background: rgba(59,130,246,0.1); color: #93c5fd; border-bottom: 1px solid rgba(59,130,246,0.2); }
+/* NOTIF */
+.notif { padding:7px 14px; font-size:12px; display:none; flex-shrink:0; }
+.notif.show    { display:block; }
+.notif.error   { background:rgba(239,68,68,.12); color:#fca5a5; border-bottom:1px solid rgba(239,68,68,.15); }
+.notif.success { background:rgba(34,197,94,.1);  color:#86efac; border-bottom:1px solid rgba(34,197,94,.15); }
+.notif.info    { background:rgba(0,188,212,.1);  color:#67e8f9; border-bottom:1px solid rgba(0,188,212,.15); }
 
 /* MODAL */
-.modal-overlay {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.7);
-  display: flex; align-items: flex-end;
-  z-index: 1000; backdrop-filter: blur(4px);
-}
-.modal-overlay.hidden { display: none; }
-.modal-card {
-  background: #111820;
-  border: 1px solid var(--border);
-  border-radius: 20px 20px 0 0;
-  padding: 24px 20px 32px;
-  width: 100%;
-  max-width: 480px;
-  margin: 0 auto;
-  display: flex; flex-direction: column; gap: 12px;
-}
-.modal-title { font-size: 17px; font-weight: 800; text-align: center; color: var(--yellow); }
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.75); display:flex; align-items:flex-end; z-index:1000; backdrop-filter:blur(4px); }
+.modal-overlay.hidden { display:none; }
+.modal-card { background:#14141e; border:1px solid var(--border); border-radius:20px 20px 0 0; padding:24px 18px 32px; width:100%; display:flex; flex-direction:column; gap:12px; }
+.modal-title { font-size:17px; font-weight:800; text-align:center; color:var(--teal); }
+.modal-input { background:#0d0d16; border:1px solid var(--border); color:var(--text); padding:12px 14px; border-radius:10px; font-size:14px; font-family:'Inter',sans-serif; width:100%; outline:none; }
+.modal-input:focus { border-color:var(--teal); }
+.modal-btn { padding:13px; border-radius:10px; border:none; font-family:'Inter',sans-serif; font-size:14px; font-weight:700; cursor:pointer; width:100%; }
+.btn-connect { background:var(--red); color:white; }
+.btn-cancel  { background:var(--border); color:var(--muted); }
 </style>
 </head>
 <body>
 
-<header>
+<div class="header">
   <a class="back-btn" href="/">←</a>
-  <div class="logo">KUIS LIVE <span>× TIKTOK</span></div>
-  <div class="status-badge" id="statusBadge" onclick="openModal()">Sambungkan</div>
-</header>
-
-<!-- LEFT PANEL -->
-<div class="left-panel">
-  <div class="panel-label">Kontrol</div>
-  <button class="btn btn-yellow" onclick="nextQuestion()">⏭ Soal Berikutnya</button>
-  <button class="btn btn-muted btn-sm" onclick="resetScores()">↺ Reset Skor</button>
-  <button class="btn btn-muted btn-sm" onclick="openModal()">⚙ Ganti Akun</button>
-
-  <div class="divider"></div>
-  <div class="panel-label">Statistik</div>
-  <div class="stat-grid">
-    <div class="stat-box"><div class="stat-val" id="statQ">0</div><div class="stat-lbl">Soal</div></div>
-    <div class="stat-box"><div class="stat-val" id="statA">0</div><div class="stat-lbl">Jawaban</div></div>
-  </div>
-
-  <div class="divider"></div>
-  <div class="panel-label">Leaderboard</div>
-  <div class="lb-list" id="lbList">
-    <div style="font-size:12px;color:var(--muted);text-align:center;padding:12px">Belum ada skor</div>
-  </div>
-
-  <div class="divider"></div>
-  <div class="panel-label">Soal Custom (JSON)</div>
-  <textarea class="input-field" id="customQJson" rows="5" placeholder='[{"q":"Soal?","a":["jawaban1","jawaban2"]}]' style="resize:vertical;font-size:11px;font-family:monospace"></textarea>
-  <button class="btn btn-green btn-sm" onclick="uploadCustomQuestions()">Upload Soal</button>
+  <div class="game-icon">🎮</div>
+  <div class="header-title">Kuis TikTok</div>
+  <div class="live-badge">LIVE</div>
+  <div class="ronde-badge" id="rondeBadge">Ronde 0</div>
 </div>
 
-<!-- MAIN -->
-<div class="main">
-  <!-- TIMER -->
-  <div class="timer-wrap">
-    <div class="timer-num" id="timerNum">--</div>
-    <div class="timer-bar-bg"><div class="timer-bar-fill" id="timerFill" style="width:100%"></div></div>
-    <div class="q-counter">Soal #<span id="qNum">0</span></div>
-  </div>
-
-  <!-- QUESTION -->
-  <div class="question-wrap">
-    <div class="question-box" id="questionBox">
-      <div class="waiting-text">⏳ Sambungkan TikTok Live<br>lalu tekan "Soal Berikutnya"</div>
-    </div>
-    <div class="answer-reveal" id="answerReveal">
-      Jawaban: <span class="ans" id="answerText"></span>
-    </div>
-  </div>
-
-  <!-- WINNER -->
-  <div class="winner-card" id="winnerCard">
-    <div class="winner-emoji">🏆</div>
-    <div class="winner-info">
-      <div class="winner-label">BENAR!</div>
-      <div class="winner-name" id="winnerName"></div>
-      <div class="winner-next">Soal berikutnya dalam 6 detik...</div>
-    </div>
-    <div class="winner-answer" id="winnerAnswer"></div>
-  </div>
-
-  <!-- ANSWERS -->
-  <div class="answers-label">JAWABAN MASUK:</div>
-  <div class="answers-feed" id="answersFeed">
-    <div style="text-align:center;color:var(--muted);padding:32px;font-size:13px" id="answersEmpty">
-      Jawaban penonton akan muncul di sini
-    </div>
-  </div>
+<div class="stats-bar">
+  <div class="stat-pill"><span>👥</span><span class="num" id="statPemain">0</span><span class="lbl">Pemain</span></div>
+  <div class="stat-pill"><span>💬</span><span class="num" id="statJawaban">0</span><span class="lbl">Jawaban</span></div>
+  <button class="connect-btn" id="connectBtn" onclick="openModal()">🔴 Connect</button>
 </div>
 
-<!-- RIGHT: CHAT -->
-<div class="right-panel">
-  <div class="chat-header">
-    <div class="panel-label">Live Chat</div>
-    <div style="font-size:11px;color:var(--muted)" id="chatCount">0 pesan</div>
-  </div>
-  <div class="chat-feed" id="chatFeed"></div>
-</div>
-
-<!-- NOTIF -->
 <div class="notif" id="notif"></div>
 
-<!-- CONNECT MODAL -->
+<div class="main-area">
+  <div class="timer-circle-wrap">
+    <svg class="timer-svg" viewBox="0 0 90 90">
+      <circle class="timer-track" cx="45" cy="45" r="40"/>
+      <circle class="timer-fill" id="timerRing" cx="45" cy="45" r="40"/>
+    </svg>
+    <div class="timer-num" id="timerNum">--</div>
+  </div>
+  <div class="info-text">
+    <div class="info-line" id="infoLine">WAJIB FOLLOW SEBELUM KOMEN<br>Gift 30 koin bisa pilih kuis<br>Maks 50 round.<br>1 koin = 0.5 poin di leaderboard</div>
+  </div>
+</div>
+
+<div class="question-wrap">
+  <div class="question-box" id="questionBox">
+    <div class="question-label">PERTANYAAN</div>
+    <div class="question-text" id="questionText">Sambungkan TikTok Live untuk mulai...</div>
+  </div>
+  <div class="answer-reveal" id="answerReveal">Jawaban: <span class="ans" id="answerText"></span></div>
+</div>
+
+<div class="winner-banner" id="winnerBanner">
+  <div class="winner-emoji">🏆</div>
+  <div class="winner-info">
+    <div class="winner-label">BENAR!</div>
+    <div class="winner-name" id="winnerName"></div>
+    <div class="winner-next">Soal berikutnya dalam 6 detik...</div>
+  </div>
+  <div class="winner-answer" id="winnerAnswer"></div>
+</div>
+
+<div class="answers-section">
+  <div class="section-label"><span class="dot"></span>Jawaban Masuk</div>
+  <div class="answers-feed" id="answersFeed"></div>
+  <div class="chat-hint">💬 Tulis jawaban di kolom komentar Live!</div>
+</div>
+
+<div class="lb-section">
+  <div class="lb-header"><div class="lb-trophy">🏆</div><div class="lb-title">Leaderboard</div></div>
+  <div class="lb-list" id="lbList"><div style="font-size:12px;color:var(--muted);text-align:center;padding:16px">Belum ada skor</div></div>
+  <div class="lb-sponsor">SPONSORED BY : <strong>DM FOR BOOKING</strong></div>
+</div>
+
+<div class="admin-bar">
+  <button class="admin-btn-sm" onclick="nextQuestion()">⏭ Soal Baru</button>
+  <input class="admin-input" id="testInput" placeholder="Tes jawaban...">
+  <button class="admin-btn" onclick="testAnswer()">Kirim</button>
+</div>
+
 <div class="modal-overlay hidden" id="modal">
   <div class="modal-card">
     <div class="modal-title">🔴 Sambungkan TikTok Live</div>
-    <input class="input-field" id="modalUser" placeholder="@username_tiktok">
-    <input class="input-field" id="modalSession" type="password" placeholder="Session ID (opsional)">
-    <button class="btn btn-yellow" onclick="doConnect()">Connect</button>
-    <button class="btn btn-muted" onclick="closeModal()">Batal</button>
+    <input class="modal-input" id="modalUser" placeholder="@username_tiktok">
+    <input class="modal-input" id="modalSession" type="password" placeholder="Session ID (opsional)">
+    <button class="modal-btn btn-connect" onclick="doConnect()">🔴 Connect Live</button>
+    <button class="modal-btn btn-cancel" onclick="closeModal()">Batal</button>
   </div>
 </div>
 
 <script>
-let ws, wsTimer;
-let timerInterval = null;
-let roundEndTime  = null;
-let roundDuration = 30;
-let totalAnswers  = 0;
-let totalQ        = 0;
-let chatCount     = 0;
+const CIRC = 2 * Math.PI * 40;
+let ws, wsTimer, timerInterval=null, roundEndTime=null, roundDuration=30;
+let totalAnswers=0, uniquePlayers=new Set();
 
-const COLORS = ["#e74c3c","#e67e22","#f1c40f","#2ecc71","#1abc9c","#3498db","#9b59b6","#e91e63"];
-const avColor = n => COLORS[(n||"A").charCodeAt(0) % COLORS.length];
+const COLORS=["#e74c3c","#e67e22","#f59e0b","#2ecc71","#1abc9c","#3498db","#9b59b6","#e91e63"];
+const avColor=n=>COLORS[(n||"A").charCodeAt(0)%COLORS.length];
 
-// ===== WS =====
 function connectWS() {
-  const proto = location.protocol === "https:" ? "wss:" : "ws:";
-  ws = new WebSocket(`${proto}//${location.host}`);
-  ws.onopen    = () => console.log("WS ok");
-  ws.onmessage = e => {
-    const d = JSON.parse(e.data);
-    if (d.type === "INIT") { restoreState(d.quiz); return; }
-    if (d.game && d.game !== "quiz") return;
+  const proto=location.protocol==="https:"?"wss:":"ws:";
+  ws=new WebSocket(`${proto}//${location.host}`);
+  ws.onopen=()=>console.log("WS ok");
+  ws.onmessage=e=>{
+    const d=JSON.parse(e.data);
+    if(d.type==="INIT"){restoreState(d.quiz);return;}
+    if(d.game&&d.game!=="quiz")return;
     handleMsg(d);
   };
-  ws.onclose = () => { wsTimer = setTimeout(connectWS, 3000); };
+  ws.onclose=()=>{wsTimer=setTimeout(connectWS,3000);};
 }
 
-function handleMsg(d) {
-  switch(d.type) {
-    case "NEW_QUESTION":    onNewQuestion(d); break;
-    case "NEW_ANSWER":      onNewAnswer(d.answer); break;
-    case "CORRECT_ANSWER":  onCorrect(d); break;
-    case "QUESTION_TIMEOUT":onTimeout(d); break;
-    case "CHAT_MESSAGE":    addChat(d.username, d.message, d.isGuess); break;
-    case "TIKTOK_CONNECTED":
-      setBadge(true, d.username);
-      showNotif(`✅ Connected ke @${d.username}`, "success");
-      break;
-    case "TIKTOK_DISCONNECTED":
-      setBadge(false);
-      showNotif("❌ TikTok terputus", "error");
-      break;
-    case "TIKTOK_ERROR": showNotif(`⚠️ ${d.message}`, "error"); break;
+function handleMsg(d){
+  switch(d.type){
+    case"NEW_QUESTION":   onNewQuestion(d);break;
+    case"NEW_ANSWER":     onNewAnswer(d.answer);break;
+    case"CORRECT_ANSWER": onCorrect(d);break;
+    case"QUESTION_TIMEOUT":onTimeout(d);break;
+    case"CHAT_MESSAGE":   if(d.isGuess)trackPlayer(d.username);break;
+    case"TIKTOK_CONNECTED":setBtn(true,d.username);showNotif(`✅ Connected ke @${d.username}`,"success");break;
+    case"TIKTOK_DISCONNECTED":setBtn(false);showNotif("❌ TikTok terputus","error");break;
+    case"TIKTOK_ERROR":showNotif(`⚠️ ${d.message}`,"error");break;
   }
 }
 
-function restoreState(s) {
-  if (!s) return;
-  roundDuration = s.duration || 30;
-  totalQ = s.questionNumber || 0;
-  setEl("statQ", totalQ);
-  setEl("qNum", totalQ);
-  if (s.connected) setBadge(true, s.tiktokUser);
-  if (s.leaderboard) renderLB(s.leaderboard);
-  if (s.isActive && s.roundEndTime) {
-    roundEndTime = s.roundEndTime;
+function restoreState(s){
+  if(!s)return;
+  roundDuration=s.duration||30;
+  setEl("rondeBadge",`Ronde ${s.questionNumber||0}`);
+  if(s.connected)setBtn(true,s.tiktokUser);
+  if(s.leaderboard)renderLB(s.leaderboard);
+  if(s.isActive&&s.roundEndTime&&s.question){
+    roundEndTime=s.roundEndTime;
+    setQuestion(s.question,"active");
     startTimer();
-    setQuestion(s.question, "active");
   }
 }
 
-// ===== GAME EVENTS =====
-function onNewQuestion(d) {
-  roundEndTime  = d.roundEndTime;
-  roundDuration = d.duration || 30;
-  totalQ        = d.questionNumber;
-  totalAnswers  = 0;
-
-  setEl("statQ", totalQ);
-  setEl("qNum", totalQ);
-  setEl("statA", 0);
-
-  document.getElementById("winnerCard").classList.remove("show");
-  document.getElementById("answerReveal").style.display = "none";
-  document.getElementById("answersFeed").innerHTML = `<div style="text-align:center;color:var(--muted);padding:20px;font-size:13px" id="answersEmpty">Menunggu jawaban...</div>`;
-
-  setQuestion(d.question, "active");
+function onNewQuestion(d){
+  roundEndTime=d.roundEndTime; roundDuration=d.duration||30;
+  totalAnswers=0; uniquePlayers=new Set();
+  setEl("rondeBadge",`Ronde ${d.questionNumber}`);
+  setEl("statJawaban",0); setEl("statPemain",0);
+  document.getElementById("winnerBanner").classList.remove("show");
+  document.getElementById("answerReveal").style.display="none";
+  document.getElementById("answersFeed").innerHTML="";
+  setQuestion(d.question,"active");
   startTimer();
 }
 
-function onNewAnswer(a) {
+function onNewAnswer(a){
   totalAnswers++;
-  setEl("statA", totalAnswers);
-  document.getElementById("answersEmpty")?.remove();
+  setEl("statJawaban",totalAnswers);
+  trackPlayer(a.username);
   addAnswerCard(a);
 }
 
-function onCorrect(d) {
+function onCorrect(d){
   stopTimer();
-  document.getElementById("winnerCard").classList.add("show");
-  setEl("winnerName", d.nickname || d.winner);
-  setEl("winnerAnswer", d.answer.toUpperCase());
-  setQuestion(document.getElementById("questionBox").dataset.q || "", "correct");
+  document.getElementById("winnerBanner").classList.add("show");
+  setEl("winnerName",d.nickname||d.winner);
+  setEl("winnerAnswer",(d.answer||"").toUpperCase());
+  document.getElementById("questionBox").className="question-box correct";
   revealAnswer(d.answer);
   renderLB(d.leaderboard);
 }
 
-function onTimeout(d) {
+function onTimeout(d){
   stopTimer();
-  setQuestion(document.getElementById("questionBox").dataset.q || "", "timeout");
+  document.getElementById("questionBox").className="question-box timeout";
   revealAnswer(d.answer);
-  renderLB(d.leaderboard || []);
-  showNotif(`⏰ Waktu habis! Jawaban: ${d.answer.toUpperCase()}`, "error");
+  if(d.leaderboard)renderLB(d.leaderboard);
+  showNotif(`⏰ Waktu habis! Jawaban: ${(d.answer||"").toUpperCase()}`,"error");
 }
 
-// ===== UI =====
-function setQuestion(text, state) {
-  const box = document.getElementById("questionBox");
-  box.className = `question-box ${state}`;
-  box.dataset.q = text;
-  box.innerHTML = `<div class="question-text">${text || "–"}</div>`;
+function trackPlayer(u){uniquePlayers.add(u);setEl("statPemain",uniquePlayers.size);}
+
+function setQuestion(text,state){
+  document.getElementById("questionBox").className=`question-box ${state}`;
+  setEl("questionText",text||"Menunggu soal...");
 }
 
-function revealAnswer(ans) {
-  const el = document.getElementById("answerReveal");
-  document.getElementById("answerText").textContent = ans.toUpperCase();
-  el.style.display = "block";
+function revealAnswer(ans){
+  setEl("answerText",(ans||"").toUpperCase());
+  document.getElementById("answerReveal").style.display="block";
 }
 
-function addAnswerCard(a) {
-  const feed = document.getElementById("answersFeed");
-  const card = document.createElement("div");
-  card.className = `answer-card${a.correct ? " correct-ans" : " wrong-ans"}`;
-
-  const av = a.avatar
-    ? `<img class="ans-avatar" src="${a.avatar}" onerror="this.style.display='none'">`
-    : `<div class="ans-avatar-ph" style="background:${avColor(a.username)}">${(a.nickname||a.username||"?")[0].toUpperCase()}</div>`;
-
-  card.innerHTML = `
-    ${av}
-    <div style="flex:1;overflow:hidden">
-      <div class="ans-user">${a.nickname || a.username}</div>
-      <div class="ans-text${a.correct ? " correct-text" : ""}">${a.answer}</div>
+function addAnswerCard(a){
+  const feed=document.getElementById("answersFeed");
+  while(feed.children.length>=30)feed.removeChild(feed.lastChild);
+  const card=document.createElement("div");
+  card.className="answer-card";
+  if(a.correct){card.style.borderColor="var(--green)";card.style.background="rgba(34,197,94,.06)";}
+  card.innerHTML=`
+    <div class="ans-icon${a.correct?" correct":""}">${a.correct?"✓":"✕"}</div>
+    <div class="ans-body">
+      <div class="ans-user">${a.nickname||a.username}</div>
+      <div class="ans-text">"${a.answer}"</div>
     </div>
-    <div class="ans-icon">${a.correct ? "✅" : "❌"}</div>
-  `;
-  feed.insertBefore(card, feed.firstChild);
+    <div class="ans-badge ${a.correct?"benar":"salah"}">${a.correct?"BENAR":"SALAH"}</div>`;
+  feed.insertBefore(card,feed.firstChild);
 }
 
-function renderLB(data) {
-  const el = document.getElementById("lbList");
-  if (!data || data.length === 0) {
-    el.innerHTML = `<div style="font-size:12px;color:var(--muted);text-align:center;padding:12px">Belum ada skor</div>`;
-    return;
-  }
-  el.innerHTML = data.map((p, i) => {
-    const rankClass = i===0?"gold":i===1?"silver":i===2?"bronze":"";
-    const medals = ["🥇","🥈","🥉"];
-    const rankStr = i < 3 ? medals[i] : `${i+1}`;
-    const av = p.avatar
-      ? `<img class="lb-avatar" src="${p.avatar}" onerror="this.style.display='none'">`
-      : `<div class="lb-avatar-ph" style="background:${avColor(p.username)}">${(p.nickname||p.username||"?")[0].toUpperCase()}</div>`;
-    return `<div class="lb-item">
-      <div class="lb-rank ${rankClass}">${rankStr}</div>
-      ${av}
-      <div class="lb-name">${p.nickname || p.username}</div>
-      <div class="lb-score">${p.score}</div>
-    </div>`;
+function renderLB(data){
+  const el=document.getElementById("lbList");
+  if(!data||!data.length){el.innerHTML=`<div style="font-size:12px;color:var(--muted);text-align:center;padding:16px">Belum ada skor</div>`;return;}
+  const medals=["👑","🥈","🥉"];
+  el.innerHTML=data.map((p,i)=>{
+    const av=p.avatar?`<img class="lb-avatar" src="${p.avatar}" onerror="this.style.display='none'">`:`<div class="lb-avatar-ph" style="background:${avColor(p.username)}">${(p.nickname||p.username||"?")[0].toUpperCase()}</div>`;
+    const rk=i<3?`<div class="lb-rank">${medals[i]}</div>`:`<div class="lb-rank num">${i+1}</div>`;
+    return`<div class="lb-item${i===0?" rank-1":""}">${rk}${av}<div class="lb-name">${p.nickname||p.username}</div><div class="lb-score">${p.score}</div></div>`;
   }).join("");
 }
 
-function addChat(user, msg, isAnswer) {
-  const feed = document.getElementById("chatFeed");
-  const item = document.createElement("div");
-  item.className = `chat-item${isAnswer ? " is-answer" : ""}`;
-  item.innerHTML = `<div class="chat-user">${user}</div><div class="chat-msg">${msg}</div>`;
-  feed.appendChild(item);
-  feed.scrollTop = feed.scrollHeight;
-  chatCount++;
-  setEl("chatCount", `${chatCount} pesan`);
-  while (feed.children.length > 150) feed.removeChild(feed.firstChild);
-}
-
-// ===== TIMER =====
-function startTimer() {
-  if (timerInterval) clearInterval(timerInterval);
-  timerInterval = setInterval(tickTimer, 500);
+function startTimer(){
+  if(timerInterval)clearInterval(timerInterval);
+  timerInterval=setInterval(tickTimer,500);
   tickTimer();
 }
 
-function tickTimer() {
-  if (!roundEndTime) return;
-  const rem = Math.max(0, Math.ceil((roundEndTime - Date.now()) / 1000));
-  const pct = (rem / roundDuration) * 100;
-  const numEl  = document.getElementById("timerNum");
-  const fillEl = document.getElementById("timerFill");
-  numEl.textContent = rem;
-  fillEl.style.width = pct + "%";
-  const warn = rem <= 10;
-  numEl.className  = warn ? "timer-num warn" : "timer-num";
-  fillEl.className = warn ? "timer-bar-fill warn" : "timer-bar-fill";
-  if (rem === 0) { clearInterval(timerInterval); timerInterval = null; }
+function tickTimer(){
+  if(!roundEndTime)return;
+  const rem=Math.max(0,Math.ceil((roundEndTime-Date.now())/1000));
+  const pct=rem/roundDuration;
+  const offset=CIRC*(1-pct);
+  const ring=document.getElementById("timerRing");
+  const num=document.getElementById("timerNum");
+  num.textContent=rem;
+  ring.style.strokeDashoffset=offset;
+  const d=rem<=5,w=rem<=10&&!d;
+  num.className=d?"timer-num danger":w?"timer-num warn":"timer-num";
+  ring.className=d?"timer-fill danger":w?"timer-fill warn":"timer-fill";
+  if(rem===0){clearInterval(timerInterval);timerInterval=null;}
 }
 
-function stopTimer() {
-  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-  setEl("timerNum", "--");
+function stopTimer(){
+  if(timerInterval){clearInterval(timerInterval);timerInterval=null;}
+  setEl("timerNum","--");
+  document.getElementById("timerRing").style.strokeDashoffset=CIRC;
+  document.getElementById("timerRing").className="timer-fill";
 }
 
-// ===== STATUS =====
-function setBadge(live, user="") {
-  const el = document.getElementById("statusBadge");
-  el.className = live ? "status-badge live" : "status-badge";
-  el.textContent = live ? `@${user}` : "Sambungkan";
+function setBtn(live,user=""){
+  const el=document.getElementById("connectBtn");
+  el.textContent=live?`@${user} ✓`:"🔴 Connect";
+  el.className=live?"connect-btn live":"connect-btn";
 }
 
-// ===== MODAL =====
-function openModal()  { document.getElementById("modal").classList.remove("hidden"); }
-function closeModal() { document.getElementById("modal").classList.add("hidden"); }
+function openModal(){document.getElementById("modal").classList.remove("hidden");}
+function closeModal(){document.getElementById("modal").classList.add("hidden");}
 
-async function doConnect() {
-  const username  = document.getElementById("modalUser").value.trim();
-  const sessionId = document.getElementById("modalSession").value.trim();
-  if (!username) { showNotif("⚠️ Masukkan username!", "error"); return; }
-  closeModal();
-  showNotif("⏳ Connecting...", "info");
-  try {
-    await fetch("/api/quiz/connect", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, sessionId }),
-    });
-  } catch(e) { showNotif("❌ Gagal connect", "error"); }
+async function doConnect(){
+  const username=document.getElementById("modalUser").value.trim();
+  const sessionId=document.getElementById("modalSession").value.trim();
+  if(!username){showNotif("⚠️ Masukkan username!","error");return;}
+  closeModal();showNotif("⏳ Connecting...","info");
+  try{
+    await fetch("/api/quiz/connect",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username,sessionId})});
+  }catch(e){showNotif("❌ Gagal connect","error");}
 }
 
-// ===== API =====
-async function nextQuestion() {
-  await fetch("/api/quiz/next", { method: "POST" });
+async function nextQuestion(){await fetch("/api/quiz/next",{method:"POST"});}
+
+async function testAnswer(){
+  const word=document.getElementById("testInput").value.trim();
+  if(!word)return;
+  await fetch("/api/quiz/test-guess",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:"test_user",word})});
+  document.getElementById("testInput").value="";
 }
 
-async function resetScores() {
-  if (!confirm("Reset semua skor?")) return;
-  await fetch("/api/quiz/reset", { method: "POST" });
-  renderLB([]);
-  showNotif("✅ Skor direset", "success");
-}
-
-async function uploadCustomQuestions() {
-  const raw = document.getElementById("customQJson").value.trim();
-  if (!raw) return;
-  try {
-    const qs = JSON.parse(raw);
-    const res = await fetch("/api/quiz/questions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(qs),
-    });
-    const data = await res.json();
-    if (data.success) showNotif(`✅ ${data.count} soal berhasil diupload!`, "success");
-    else showNotif("❌ " + data.message, "error");
-  } catch(e) { showNotif("❌ Format JSON salah!", "error"); }
-}
-
-// ===== NOTIF =====
 let notifTimer;
-function showNotif(msg, type) {
-  const el = document.getElementById("notif");
-  el.textContent = msg;
-  el.className = `notif show ${type}`;
-  clearTimeout(notifTimer);
-  notifTimer = setTimeout(() => el.classList.remove("show"), 5000);
+function showNotif(msg,type){
+  const el=document.getElementById("notif");
+  el.textContent=msg; el.className=`notif show ${type}`;
+  clearTimeout(notifTimer); notifTimer=setTimeout(()=>el.classList.remove("show"),5000);
 }
 
-function setEl(id, val) { const e = document.getElementById(id); if(e) e.textContent = val; }
+function setEl(id,val){const e=document.getElementById(id);if(e)e.textContent=val;}
 
-document.getElementById("modal").addEventListener("click", e => { if(e.target===document.getElementById("modal")) closeModal(); });
-document.getElementById("modalUser").addEventListener("keydown", e => { if(e.key==="Enter") doConnect(); });
+document.getElementById("modal").addEventListener("click",e=>{if(e.target===document.getElementById("modal"))closeModal();});
+document.getElementById("modalUser").addEventListener("keydown",e=>{if(e.key==="Enter")doConnect();});
+document.getElementById("testInput").addEventListener("keydown",e=>{if(e.key==="Enter")testAnswer();});
 
 connectWS();
 </script>
