@@ -705,7 +705,9 @@ function quizGetLeaderboard() {
 // ============================================================
 async function connectTikTok(game, username, sessionId = "") {
   // Putuskan koneksi lama kalau ada
-  const oldConn = game === "wordle" ? wordleConnection : sekataConnection;
+  const oldConn = game === "wordle" ? wordleConnection
+               : game === "contexto" ? contextoConnection
+               : quizConnection;
   if (oldConn) { try { oldConn.disconnect(); } catch(e) {} }
 
   const options = {
@@ -762,7 +764,8 @@ async function connectTikTok(game, username, sessionId = "") {
 
     const cleaned = comment.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z]/g, "").toLowerCase();
 
-    broadcast({ game, type: "CHAT_MESSAGE", username, nickname, avatar, message: comment, isGuess: cleaned.length >= 2 });
+    const isGuess = game === "quiz" ? comment.trim().length >= 1 : cleaned.length >= 2;
+    broadcast({ game, type: "CHAT_MESSAGE", username, nickname, avatar, message: comment, isGuess });
 
     if (game === "wordle") {
       const upper = cleaned.toUpperCase();
@@ -770,7 +773,7 @@ async function connectTikTok(game, username, sessionId = "") {
     } else if (game === "contexto") {
       if (cleaned.length >= 2) contextoProcessGuess(userId, username, cleaned, nickname, avatar);
     } else if (game === "quiz") {
-      if (comment.trim().length >= 1) quizProcessAnswer(userId, username, comment.trim(), nickname, avatar);
+      quizProcessAnswer(userId, username, comment.trim(), nickname, avatar);
     }
   });
 
