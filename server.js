@@ -2575,7 +2575,7 @@ function endCategoryVote() {
   });
 
   // Mulai soal dari kategori terpilih setelah 3 detik
-  setTimeout(quizNextQuestion, 3000);
+  setTimeout(() => quizNextQuestion(true), 3000);
 }
 
 function quizPickNextQuestion() {
@@ -2603,15 +2603,15 @@ function quizCheckAnswer(input, answers) {
   return answers.some(a => quizNormalize(a) === norm);
 }
 
-function quizNextQuestion() {
+function quizNextQuestion(fromVote = false) {
   if (quizTimer) { clearTimeout(quizTimer); quizTimer = null; }
   if (quizQuestions.length === 0) return;
 
-  // Setiap 50 soal → trigger vote kategori
-  if (quizState.questionNumber > 0 && quizState.questionNumber % 50 === 0) {
-    currentCategory = null; // reset sementara
+  // Setiap 50 soal → trigger vote kategori (skip jika baru dari vote)
+  if (!fromVote && quizState.questionNumber > 0 && quizState.questionNumber % 50 === 0) {
+    currentCategory = null;
     startCategoryVote();
-    return; // vote akan memanggil quizNextQuestion setelah selesai
+    return;
   }
 
   const q = quizPickNextQuestion();
