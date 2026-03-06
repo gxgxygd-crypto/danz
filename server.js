@@ -2698,10 +2698,13 @@ async function connectTikTok(game, username, sessionId = "") {
   if (oldConn) { try { oldConn.disconnect(); } catch(e) {} }
 
   const options = {
-    processInitialData    : false,
-    enableExtendedGiftInfo: false,
-    enableWebsocketUpgrade: true,
-    requestPollingIntervalMs: 2000,
+    processInitialData      : false,
+    enableExtendedGiftInfo  : false,
+    enableWebsocketUpgrade  : true,
+    requestPollingIntervalMs: 500,
+    reconnectEnabled        : true,
+    reconnectCount          : 5,
+    reconnectInterval       : 3000,
     clientParams: { app_language: "id-ID", device_platform: "web" },
   };
   if (sessionId && sessionId.trim()) options.sessionId = sessionId.trim();
@@ -2740,14 +2743,25 @@ async function connectTikTok(game, username, sessionId = "") {
     broadcast({ game, type: "TIKTOK_ERROR", message: err.message });
   });
 
+  conn.on("disconnected", () => {
+    console.log(`🔌 [${game.toUpperCase()}] TikTok terputus, mencoba reconnect...`);
+    broadcast({ game, type: "TIKTOK_DISCONNECTED" });
+  });
+
   conn.on("chat", data => {
     const comment  = (data.comment || "").trim();
     if (!comment) return;
 
-    const userId   = String(data.uniqueId || (data.userId && Number(data.userId) > 0 ? data.userId : null) || `guest_${Date.now()}`);
-    const username = String(data.uniqueId || data.userId || "anon");
+    // Gunakan userId numerik sebagai key utama (stabil), uniqueId sebagai display
+    const numId    = data.userId ? String(Number(data.userId)) : "";
+    const strId    = String(data.uniqueId || "").trim();
+    const userId   = numId && numId !== "0" && numId !== "NaN" ? numId : (strId || `guest_${Math.random().toString(36).slice(2)}`);
+    const username = strId || numId || "anon";
     const nickname = String(data.nickname || username);
     const avatar   = String(data.profilePictureUrl || "");
+
+    // Debug log untuk mendeteksi user tanpa ID
+    if (!numId && !strId) console.log("⚠️  [CHAT] User tanpa ID:", data);
 
     const cleaned = comment.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z]/g, "").toLowerCase();
 
